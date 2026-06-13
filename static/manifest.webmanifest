@@ -1,0 +1,17 @@
+{
+  "name": "CampoApp",
+  "short_name": "CampoApp",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#faf5eb",
+  "theme_color": "#2d2218",
+  "description": "App de relatórios mensais com conta comum e responsável.",
+  "icons": [
+    {
+      "src": "/static/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#2d2218" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>CampoApp</title>
+  <link rel="manifest" href="{{ url_for('manifest') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.svg') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div>
+        <p class="eyebrow">CampoApp</p>
+        <h1>Relatório mensal</h1>
+        <p class="sidebar-text">
+          Preencha o relatório de cada mês com aparência de formulário impresso,
+          enquanto o secretário recebe todos os envios na própria conta.
+        </p>
+      </div>
+      <div class="card hint-card">
+        <strong>Conta inicial do Secretário da Congregação</strong>
+        <ul>
+          <li>Usuário: Secretário da Congregação</li>
+          <li>Senha: 123456</li>
+        </ul>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="mobile-topbar">
+        <div>
+          <p class="eyebrow">Sistema de relatórios</p>
+          <h2>CampoApp</h2>
+        </div>
+        {% if user %}
+          <div class="topbar-actions">
+            {% if user.role == 'manager' %}
+              <button class="secondary-btn" type="button" onclick="window.print()">Imprimir</button>
+            {% endif %}
+            <a class="secondary-btn" href="{{ url_for('logout') }}">Sair</a>
+          </div>
+        {% endif %}
+      </div>
+
+      {% with messages = get_flashed_messages() %}
+        {% if messages %}
+          <div class="flash-wrap">
+            {% for message in messages %}
+              <div class="flash">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      {% endwith %} 
+
+      <section class="panel">
+        {% if not user %}
+          <div class="hero-card">
+            <div>
+              <p class="eyebrow">Acesso</p>
+              <h2>Entre ou crie uma conta</h2>
+              <p class="muted">Cada publicador salva seu próprio relatório e o Secretário da Congregação recebe todos.</p>
+            </div>
+          </div>
+
+          <div class="grid-2 auth-grid">
+            <form class="card form-card" method="post" action="{{ url_for('login') }}">
+              <h3>Login</h3>
+              <label>Nome
+                <input name="name" type="text" placeholder="Seu nome" required>
+              </label>
+              <label>Senha
+                <input name="password" type="password" placeholder="Sua senha" required>
+              </label>
+              <button class="primary-btn" type="submit">Entrar</button>
+            </form>
+
+            <form class="card form-card" method="post" action="{{ url_for('register') }}">
+              <h3>Criar conta</h3>
+              <label>Nome do publicador
+                <input name="name" type="text" placeholder="Digite o nome do publicador" required>
+              </label>
+              <label>Senha
+                <input name="password" type="password" placeholder="Crie uma senha" required>
+              </label>
+              <label>Tipo de conta
+                <select name="role">
+                  <option value="publicador">Publicador</option>
+                  <option value="manager">Secretário da Congregação</option>
+                </select>
+              </label>
+              <p class="muted helper-note">
+                {% if can_create_manager %}
+                  A conta de Secretário da Congregação pode ser criada agora porque ainda não existe uma ativa.
+                {% else %}
+                  Se já existir um Secretário da Congregação, a criação de outra conta desse tipo será bloqueada pelo sistema.
+                {% endif %}
+              </p>
+              <button class="primary-btn" type="submit">Criar conta</button>
+            </form>
+          </div>
+        {% else %}
+          <div class="status-row">
+            <div>
+              <p class="eyebrow">Conectado</p>
+              <h2>{{ user.name }}</h2>
+            </div>
+            <div class="status-actions">
+              <span class="status-pill">{{ 'Secretário da Congregação' if user.role == 'manager' else 'Publicador' }}</span>
+              {% if user.role == 'manager' %}
+                <button class="secondary-btn print-btn" type="button" onclick="window.print()">Imprimir</button>
+              {% endif %}
+            </div>
+          </div>
+
+          {% if user.role == 'manager' %}
+            <section class="card section-banner">
+              <div>
+                <p class="eyebrow">Área administrativa</p>
+                <h3>Secretário da Congregação</h3>
+                <p class="muted">Aqui ficam os relatórios organizados de todos os publicadores e as ações de impressão e manutenção da conta.</p>
+              </div>
+            </section>
+          {% endif %}
+
+          <div class="grid-2 dashboard-grid">
+            <section class="card report-preview">
+              <div class="report-paper">
+                <div class="report-title">
+                  {% if user.role == 'manager' %}MEU RELATÓRIO MENSAL{% else %}RELATÓRIO DE SERVIÇO DE CAMPO{% endif %}
+                </div>
+                <div class="report-lines">
+                  <div class="report-row"><span>Nome:</span> <strong>{{ user.name }}</strong></div>
+                  <div class="report-row"><span>Mês:</span> <strong>{{ selected_month }}</strong></div>
+                </div>
+                <div class="report-box">
+                  <div class="report-question">Marque se você participou em alguma modalidade do ministério durante o mês.</div>
+                  <div class="report-answer">{{ 'Sim' if report and report.participated else 'Não' }}</div>
+                </div>
+                <div class="report-box mini-grid">
+                  <div>
+                    <div class="report-question">Estudos bíblicos</div>
+                    <div class="report-answer">{{ report.bible_studies if report else 0 }}</div>
+                  </div>
+                  <div>
+                    <div class="report-question">Horas</div>
+                    <div class="report-answer">{{ report.hours if report else 0 }}</div>
+                  </div>
+                </div>
+                <div class="report-box">
+                  <div class="report-question">Observações</div>
+                  <div class="report-answer">{{ report.notes if report and report.notes else '-' }}</div>
+                </div>
+              </div>
+            </section>
+
+            <section class="card form-card">
+              <h3>Preencher relatório do publicador</h3>
+              <form class="stack-form" method="post" action="{{ url_for('save_report') }}">
+                <label>Mês
+                  <select name="month" required>
+                    {% for month in months %}
+                      <option value="{{ month }}" {% if month == selected_month %}selected{% endif %}>{{ month }}</option>
+                    {% endfor %}
+                  </select>
+                </label>
+                <label class="inline-check">
+                  <input type="checkbox" name="participated" {% if report and report.participated %}checked{% endif %}>
+                  Participou em alguma modalidade do ministério no mês
+                </label>
+                <label>Estudos bíblicos
+                  <input type="number" name="bible_studies" min="0" value="{{ report.bible_studies if report else 0 }}" required>
+                </label>
+                <label>Horas
+                  <input type="number" step="0.5" name="hours" min="0" value="{{ report.hours if report else 0 }}" required>
+                </label>
+                <label>Observações
+                  <textarea name="notes" rows="4" placeholder="Escreva aqui...">{{ report.notes if report and report.notes else '' }}</textarea>
+                </label>
+                <button class="primary-btn" type="submit">Salvar e enviar</button>
+              </form>
+            </section>
+          </div>
+
+          {% if user.role == 'manager' %}
+            <section class="card inbox-card print-area manager-inbox">
+              <div class="panel-header compact">
+                <div>
+                  <p class="eyebrow">Caixa do Secretário da Congregação</p>
+                  <h3>Relatórios organizados</h3>
+                </div>
+                <form class="print-form" method="post" action="{{ url_for('delete_account') }}" onsubmit="return confirm('Tem certeza que deseja excluir sua própria conta? Esta ação remove seus relatórios também.');">
+                  <button class="secondary-btn danger-btn" type="submit">Excluir minha conta</button>
+                </form>
+              </div>
+              <div class="inbox-list">
+                {% for group in inbox_groups %}
+                  <div class="inbox-group">
+                    <div class="inbox-group-head">
+                      <strong>{{ group.user.name }}</strong>
+                      <span>{{ group.reports|length }} relatório{% if group.reports|length != 1 %}s{% endif %}</span>
+                    </div>
+                    <div class="inbox-list">
+                      {% for item in group.reports %}
+                        <div class="inbox-item">
+                          <strong>{{ item.month }}</strong>
+                          <div>Participou: {{ 'Sim' if item.participated else 'Não' }}</div>
+                          <div>Estudos bíblicos: {{ item.bible_studies }}</div>
+                          <div>Horas: {{ item.hours }}</div>
+                          <div>Obs.: {{ item.notes if item.notes else '-' }}</div>
+                        </div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                {% else %}
+                  <div class="inbox-item">Nenhum relatório recebido ainda.</div>
+                {% endfor %}
+              </div>
+            </section>
+          {% endif %}
+        {% endif %}
+      </section>
+    </main>
+  </div>
+
+  <script>
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", async () => {
+        try {
+          const registrations = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(registrations.map((registration) => registration.unregister()));
+        } catch (error) {
+          console.warn("Service worker cleanup failed:", error);
+        }
+      });
+    }
+
+    if ("caches" in window) {
+      window.addEventListener("load", async () => {
+        try {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((key) => caches.delete(key)));
+        } catch (error) {
+          console.warn("Cache cleanup failed:", error);
+        }
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="CampoApp">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#b8742a"/>
+      <stop offset="100%" stop-color="#8a5417"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="40" fill="#2d2218"/>
+  <rect x="20" y="20" width="152" height="152" rx="32" fill="url(#g)"/>
+  <path d="M52 62h88M52 94h88M52 126h54" stroke="#fff7eb" stroke-width="12" stroke-linecap="round"/>
+  <circle cx="138" cy="126" r="18" fill="#fff7eb"/>
+  <path d="M138 116v20M128 126h20" stroke="#8a5417" stroke-width="8" stroke-linecap="round"/>
+</svg>

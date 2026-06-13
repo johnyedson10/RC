@@ -1,0 +1,268 @@
+from datetime import datetime
+from os import getenv
+from pathlib import Path
+from collections import defaultdict
+
+from flask import Flask, flash, redirect, render_template, request, session, url_for
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import check_password_hash, generate_password_hash
+
+
+BASE_DIR = Path(__file__).resolve().parent
+
+try:
+    from dotenv import load_dotenv
+except ImportError:
+    load_dotenv = None
+
+if load_dotenv:
+    load_dotenv(BASE_DIR / ".env")
+
+app = Flask(__name__)
+app.config["SECRET_KEY"] = getenv("SECRET_KEY", "change-this-secret-key")
+database_url = getenv("DATABASE_URL")
+env_name = getenv("FLASK_ENV", getenv("ENV", "development")).lower()
+is_production = env_name == "production"
+if not database_url:
+    if is_production:
+        raise RuntimeError("DATABASE_URL is required in production")
+    database_url = f"sqlite:///{BASE_DIR / 'relatorios.db'}"
+if database_url.startswith("postgres://"):
+    database_url = "postgresql+psycopg://" + database_url.removeprefix("postgres://")
+elif database_url.startswith("postgresql://"):
+    database_url = "postgresql+psycopg://" + database_url.removeprefix("postgresql://")
+app.config["SQLALCHEMY_DATABASE_URI"] = database_url
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+    "pool_pre_ping": True,
+}
+
+db = SQLAlchemy(app)
+
+
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False, unique=True)
+    password_hash = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(20), nullable=False, default="publicador")
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+
+class Report(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    month = db.Column(db.String(20), nullable=False)
+    participated = db.Column(db.Boolean, default=False)
+    bible_studies = db.Column(db.Integer, default=0)
+    hours = db.Column(db.Float, default=0)
+    notes = db.Column(db.Text, default="")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    user = db.relationship("User", backref=db.backref("reports", lazy=True))
+
+
+def current_user():
+    user_id = session.get("user_id")
+    if not user_id:
+        return None
+    return db.session.get(User, user_id)
+
+
+def month_order(month_name):
+    months = [
+        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+    ]
+    try:
+        return months.index(month_name)
+    except ValueError:
+        return len(months)
+
+
+def init_db():
+    db.create_all()
+    manager = User.query.filter_by(role="manager").first()
+    if not manager:
+        manager = User(name="Secretário da Congregação", role="manager")
+        manager.set_password("123456")
+        db.session.add(manager)
+        db.session.commit()
+    elif manager.name == "Responsável":
+        manager.name = "Secretário da Congregação"
+        db.session.commit()
+
+
+@app.after_request
+def add_no_cache_headers(response):
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
+@app.route("/")
+def index():
+    user = current_user()
+    months = [
+        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+    ]
+    selected_month = request.args.get("month", months[datetime.now().month - 1])
+    report = None
+    inbox_groups = []
+    can_create_manager = User.query.filter_by(role="manager").first() is None
+
+    if user:
+        report = Report.query.filter_by(user_id=user.id, month=selected_month).first()
+        if user.role == "manager":
+            reports = Report.query.order_by(Report.created_at.desc()).all()
+            grouped = defaultdict(list)
+            for item in reports:
+                grouped[item.user].append(item)
+            inbox_groups = [
+                {
+                    "user": member,
+                    "reports": sorted(items, key=lambda r: (month_order(r.month), r.created_at or datetime.min)),
+                }
+                for member, items in sorted(grouped.items(), key=lambda pair: pair[0].name.lower())
+            ]
+
+    return render_template(
+        "index.html",
+        user=user,
+        months=months,
+        selected_month=selected_month,
+        report=report,
+        inbox_groups=inbox_groups,
+        can_create_manager=can_create_manager,
+    )
+
+
+@app.route("/register", methods=["POST"])
+def register():
+    name = request.form.get("name", "").strip()
+    password = request.form.get("password", "")
+    role = request.form.get("role", "publicador")
+
+    if not name or not password:
+        flash("Preencha nome e senha.")
+        return redirect(url_for("index"))
+
+    if User.query.filter_by(name=name).first():
+        flash("Já existe uma conta com esse nome.")
+        return redirect(url_for("index"))
+
+    if role == "manager" and User.query.filter_by(role="manager").first():
+        flash("Já existe uma conta de Secretário da Congregação. Não é possível criar outra enquanto esta estiver ativa.")
+        return redirect(url_for("index"))
+
+    user = User(name=name, role=role)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+    session["user_id"] = user.id
+    flash("Conta criada com sucesso.")
+    return redirect(url_for("index"))
+
+
+@app.route("/login", methods=["POST"])
+def login():
+    name = request.form.get("name", "").strip()
+    password = request.form.get("password", "")
+    user = User.query.filter_by(name=name).first()
+
+    if not user or not user.check_password(password):
+        flash("Conta não encontrada ou senha incorreta.")
+        return redirect(url_for("index"))
+
+    session["user_id"] = user.id
+    flash("Login realizado.")
+    return redirect(url_for("index"))
+
+
+@app.route("/logout")
+def logout():
+    session.pop("user_id", None)
+    flash("Saiu da conta.")
+    return redirect(url_for("index"))
+
+
+@app.route("/delete-account", methods=["POST"])
+def delete_account():
+    user = current_user()
+    if not user:
+        flash("Faça login para excluir a conta.")
+        return redirect(url_for("index"))
+
+    if user.role != "manager":
+        flash("A exclusão da conta está disponível apenas para o Secretário da Congregação.")
+        return redirect(url_for("index"))
+
+    db.session.query(Report).filter_by(user_id=user.id).delete()
+    db.session.delete(user)
+    db.session.commit()
+    session.pop("user_id", None)
+    flash("Sua conta foi excluída.")
+    return redirect(url_for("index"))
+
+
+@app.route("/save-report", methods=["POST"])
+def save_report():
+    user = current_user()
+    if not user:
+        flash("Faça login para salvar o relatório.")
+        return redirect(url_for("index"))
+
+    month = request.form.get("month", "").strip()
+    participated = request.form.get("participated") == "on"
+    bible_studies = int(request.form.get("bible_studies", 0) or 0)
+    hours = float(request.form.get("hours", 0) or 0)
+    notes = request.form.get("notes", "").strip()
+
+    report = Report.query.filter_by(user_id=user.id, month=month).first()
+    if not report:
+        report = Report(user_id=user.id, month=month)
+        db.session.add(report)
+
+    report.participated = participated
+    report.bible_studies = bible_studies
+    report.hours = hours
+    report.notes = notes
+    report.created_at = datetime.utcnow()
+    db.session.commit()
+
+    flash("Relatório salvo com sucesso.")
+    return redirect(url_for("index", month=month))
+
+
+@app.route("/manifest.webmanifest")
+def manifest():
+    return app.send_static_file("manifest.webmanifest")
+
+
+@app.route("/sw.js")
+def service_worker():
+    response = app.send_static_file("sw.js")
+    response.headers["Service-Worker-Allowed"] = "/"
+    return response
+
+
+@app.cli.command("init-db")
+def init_db_command():
+    """Initialize the database for a fresh deployment."""
+    with app.app_context():
+        init_db()
+    print("Database initialized.")
+
+
+with app.app_context():
+    init_db()
+
+
+if __name__ == "__main__":
+    app.run(debug=(env_name != "production" and getenv("FLASK_DEBUG") == "1"))
