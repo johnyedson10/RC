@@ -15,6 +15,9 @@
   <div class="app-shell">
     <aside class="sidebar">
       <div>
+        <div class="sidebar-logo-card">
+          <img class="sidebar-logo" src="{{ url_for('static', filename='icon.svg') }}" alt="CampoApp">
+        </div>
         <p class="eyebrow">CampoApp</p>
         <h1>Relatório mensal</h1>
         <p class="sidebar-text">
@@ -30,8 +33,8 @@
         </ul>
       </div>
     </aside>
-
-    <main class="main">
+    <!--  define formalmente onde começa e termina o conteúdo principal  -->
+    <main class="main">       
       <div class="mobile-topbar">
         <div>
           <p class="eyebrow">Sistema de relatórios</p>
@@ -111,6 +114,7 @@
             </div>
             <div class="status-actions">
               <span class="status-pill">{{ 'Secretário da Congregação' if user.role == 'manager' else 'Publicador' }}</span>
+              <a class="secondary-btn logout-btn" href="{{ url_for('logout') }}">Sair</a>
               {% if user.role == 'manager' %}
                 <button class="secondary-btn print-btn" type="button" onclick="window.print()">Imprimir</button>
               {% endif %}

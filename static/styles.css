@@ -47,6 +47,26 @@ body {
 .sidebar h1, .panel h2, .panel h3 { margin: 0; }
 .sidebar h1 { font-size: 2rem; line-height: 1.05; }
 
+.sidebar-logo-card {
+  width: 100%;
+  max-width: 132px;
+  aspect-ratio: 1 / 1;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 18px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+.sidebar-logo {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+}
+
 .eyebrow {
   text-transform: uppercase;
   letter-spacing: .14em;
@@ -99,6 +119,7 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
 .panel {
@@ -240,6 +261,18 @@ textarea { resize: vertical; }
 .secondary-btn {
   background: #f1e6d8;
   color: #4a3420;
+  border: 1px solid rgba(74, 52, 32, 0.18);
+  box-shadow: 0 2px 6px rgba(74, 52, 32, 0.08);
+}
+
+.logout-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 88px;
+  min-height: 42px;
+  padding-inline: 18px;
+  white-space: nowrap;
 }
 
 .danger-btn {
@@ -367,6 +400,10 @@ textarea { resize: vertical; }
   margin-top: 20px;
 }
 
+.sidebar .hint-card {
+  margin-top: auto;
+}
+
 @media print {
   body {
     background: #fff;
@@ -438,6 +475,7 @@ textarea { resize: vertical; }
   }
   .secondary-btn { width: 100%; text-align: center; }
   .primary-btn { width: 100%; }
+  .logout-btn { width: 100%; }
   .topbar-actions,
   .status-actions {
     width: 100%;
