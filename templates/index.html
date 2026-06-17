@@ -71,24 +71,32 @@
           </div>
 
           <div class="grid-2 auth-grid">
-            <form class="card form-card" method="post" action="{{ url_for('login') }}">
+            <form class="card form-card" method="post" action="{{ url_for('login') }}" autocomplete="off" name="login-form" data-reset-form="true">
+              <div class="autofill-block" aria-hidden="true">
+                <input type="text" tabindex="-1" autocomplete="username" name="fake-user">
+                <input type="password" tabindex="-1" autocomplete="new-password" name="fake-pass">
+              </div>
               <h3>Login</h3>
               <label>Nome
-                <input name="name" type="text" placeholder="Seu nome" required>
+                <input name="name" type="text" placeholder="Seu nome" required autocomplete="off" autocapitalize="off" spellcheck="false" value="">
               </label>
               <label>Senha
-                <input name="password" type="password" placeholder="Sua senha" required>
+                <input name="password" type="password" placeholder="Sua senha" required autocomplete="off" autocapitalize="off" spellcheck="false" value="">
               </label>
               <button class="primary-btn" type="submit">Entrar</button>
             </form>
 
-            <form class="card form-card" method="post" action="{{ url_for('register') }}">
+            <form class="card form-card" method="post" action="{{ url_for('register') }}" autocomplete="off" name="register-form" data-reset-form="true">
+              <div class="autofill-block" aria-hidden="true">
+                <input type="text" tabindex="-1" autocomplete="username" name="fake-user-register">
+                <input type="password" tabindex="-1" autocomplete="new-password" name="fake-pass-register">
+              </div>
               <h3>Criar conta</h3>
               <label>Nome do publicador
-                <input name="name" type="text" placeholder="Digite o nome do publicador" required>
+                <input name="name" type="text" placeholder="Digite o nome do publicador" required autocomplete="off" autocapitalize="off" spellcheck="false" value="">
               </label>
               <label>Senha
-                <input name="password" type="password" placeholder="Crie uma senha" required>
+                <input name="password" type="password" placeholder="Crie uma senha" required autocomplete="off" autocapitalize="off" spellcheck="false" value="">
               </label>
               <label>Tipo de conta
                 <select name="role">
@@ -126,7 +134,7 @@
               <div>
                 <p class="eyebrow">Área administrativa</p>
                 <h3>Secretário da Congregação</h3>
-                <p class="muted">Aqui ficam os relatórios organizados de todos os publicadores e as ações de impressão e manutenção da conta.</p>
+                <p class="muted">Esta mesma conta também registra o seu próprio relatório mensal e depois organiza os relatórios dos publicadores.</p>
               </div>
             </section>
           {% endif %}
@@ -138,26 +146,26 @@
                   {% if user.role == 'manager' %}MEU RELATÓRIO MENSAL{% else %}RELATÓRIO DE SERVIÇO DE CAMPO{% endif %}
                 </div>
                 <div class="report-lines">
-                  <div class="report-row"><span>Nome:</span> <strong>{{ user.name }}</strong></div>
-                  <div class="report-row"><span>Mês:</span> <strong>{{ selected_month }}</strong></div>
+                  <div class="report-row"><span>Nome:</span> <strong>{{ report.user.name if report else '' }}</strong></div>
+                  <div class="report-row"><span>Mês:</span> <strong>{{ report.month if report else 'Selecionar mês' }}</strong></div>
                 </div>
                 <div class="report-box">
                   <div class="report-question">Marque se você participou em alguma modalidade do ministério durante o mês.</div>
-                  <div class="report-answer">{{ 'Sim' if report and report.participated else 'Não' }}</div>
+                  <div class="report-answer">{{ 'Sim' if report and report.participated else '' }}</div>
                 </div>
                 <div class="report-box mini-grid">
                   <div>
                     <div class="report-question">Estudos bíblicos</div>
-                    <div class="report-answer">{{ report.bible_studies if report else 0 }}</div>
+                    <div class="report-answer">{{ report.bible_studies if report else '' }}</div>
                   </div>
                   <div>
                     <div class="report-question">Horas</div>
-                    <div class="report-answer">{{ report.hours if report else 0 }}</div>
+                    <div class="report-answer">{{ report.hours if report else '' }}</div>
                   </div>
                 </div>
                 <div class="report-box">
                   <div class="report-question">Observações</div>
-                  <div class="report-answer">{{ report.notes if report and report.notes else '-' }}</div>
+                  <div class="report-answer">{{ report.notes if report and report.notes else '' }}</div>
                 </div>
               </div>
             </section>
@@ -166,9 +174,10 @@
               <h3>Preencher relatório do publicador</h3>
               <form class="stack-form" method="post" action="{{ url_for('save_report') }}">
                 <label>Mês
-                  <select name="month" required>
+                  <select name="month" required value="">
+                    <option value="" selected disabled>Selecionar mês</option>
                     {% for month in months %}
-                      <option value="{{ month }}" {% if month == selected_month %}selected{% endif %}>{{ month }}</option>
+                      <option value="{{ month }}">{{ month }}</option>
                     {% endfor %}
                   </select>
                 </label>
@@ -232,6 +241,17 @@
   </div>
 
   <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      document.querySelectorAll('[data-reset-form="true"]').forEach((form) => {
+        form.reset();
+        form.querySelectorAll('input').forEach((input) => {
+          if (input.type === "password" || input.type === "text") {
+            input.value = "";
+          }
+        });
+      });
+    });
+
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", async () => {
         try {

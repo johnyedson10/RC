@@ -201,6 +201,14 @@ body {
   margin-bottom: 14px;
 }
 
+.autofill-block {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+}
+
 .stack-form {
   display: grid;
   gap: 0;
@@ -225,6 +233,10 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus {
   border-color: rgba(184,116,42,0.7);
   box-shadow: 0 0 0 4px rgba(184,116,42,0.12);
+}
+
+select:invalid {
+  color: var(--muted);
 }
 
 textarea { resize: vertical; }

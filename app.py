@@ -20,6 +20,9 @@ if load_dotenv:
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = getenv("SECRET_KEY", "change-this-secret-key")
+app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_REFRESH_EACH_REQUEST"] = False
+app.config["PERMANENT_SESSION_LIFETIME"] = 0
 database_url = getenv("DATABASE_URL")
 env_name = getenv("FLASK_ENV", getenv("ENV", "development")).lower()
 is_production = env_name == "production"
@@ -87,12 +90,7 @@ def month_order(month_name):
 def init_db():
     db.create_all()
     manager = User.query.filter_by(role="manager").first()
-    if not manager:
-        manager = User(name="Secretário da Congregação", role="manager")
-        manager.set_password("123456")
-        db.session.add(manager)
-        db.session.commit()
-    elif manager.name == "Responsável":
+    if manager and manager.name == "Responsável":
         manager.name = "Secretário da Congregação"
         db.session.commit()
 
@@ -180,6 +178,7 @@ def login():
         flash("Conta não encontrada ou senha incorreta.")
         return redirect(url_for("index"))
 
+    session.permanent = False
     session["user_id"] = user.id
     flash("Login realizado.")
     return redirect(url_for("index"))
@@ -203,12 +202,22 @@ def delete_account():
         flash("A exclusão da conta está disponível apenas para o Secretário da Congregação.")
         return redirect(url_for("index"))
 
-    db.session.query(Report).filter_by(user_id=user.id).delete()
+    user_name = user.name
+    user_role = user.role
+    db.session.query(Report).filter_by(user_id=user.id).delete(synchronize_session=False)
     db.session.delete(user)
     db.session.commit()
     session.pop("user_id", None)
-    flash("Sua conta foi excluída.")
+    flash(f"Sua conta de {user_name} ({user_role}) foi excluída.")
     return redirect(url_for("index"))
+
+
+@app.route("/whoami")
+def whoami():
+    user = current_user()
+    if not user:
+        return {"logged_in": False, "user": None}
+    return {"logged_in": True, "user": {"id": user.id, "name": user.name, "role": user.role}}
 
 
 @app.route("/save-report", methods=["POST"])
