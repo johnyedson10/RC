@@ -23,6 +23,8 @@ app.config["SECRET_KEY"] = getenv("SECRET_KEY", "change-this-secret-key")
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_REFRESH_EACH_REQUEST"] = False
 app.config["PERMANENT_SESSION_LIFETIME"] = 0
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+app.config["SESSION_COOKIE_HTTPONLY"] = True
 database_url = getenv("DATABASE_URL")
 env_name = getenv("FLASK_ENV", getenv("ENV", "development")).lower()
 is_production = env_name == "production"
@@ -101,6 +103,17 @@ def add_no_cache_headers(response):
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
+
+
+@app.before_request
+def normalize_localhost():
+    if is_production:
+        return None
+
+    host = request.host.split(":", 1)[0]
+    if host == "127.0.0.1":
+        target = request.url.replace("//127.0.0.1", "//localhost", 1)
+        return redirect(target, code=302)
 
 
 @app.route("/")
