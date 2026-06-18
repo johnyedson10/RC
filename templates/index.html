@@ -60,6 +60,12 @@
         {% endif %}
       {% endwith %} 
 
+      {% if not user %}
+        <div class="flash-wrap">
+          <div class="flash">Sua sessão não está ativa. Entre novamente para continuar.</div>
+        </div>
+      {% endif %}
+
       <section class="panel">
         {% if not user %}
           <div class="hero-card">
@@ -172,10 +178,14 @@
 
             <section class="card form-card">
               <h3>Preencher relatório do publicador</h3>
-              <form class="stack-form" method="post" action="{{ url_for('save_report') }}">
+              <form class="stack-form" method="post" action="{{ url_for('save_report') }}" autocomplete="off" name="report-form" data-reset-form="true">
+                <div class="autofill-block" aria-hidden="true">
+                  <input type="text" tabindex="-1" autocomplete="off" name="fake-report-name">
+                  <input type="number" tabindex="-1" autocomplete="off" name="fake-report-number">
+                </div>
                 <input type="hidden" name="user_id" value="{{ user.id }}">
                 <label>Mês
-                  <select name="month" required value="">
+                  <select name="month" required>
                     <option value="" selected disabled>Selecionar mês</option>
                     {% for month in months %}
                       <option value="{{ month }}">{{ month }}</option>
@@ -187,10 +197,10 @@
                   Participou em alguma modalidade do ministério no mês
                 </label>
                 <label>Estudos bíblicos
-                  <input type="number" name="bible_studies" min="0" value="" required>
+                  <input type="number" name="bible_studies" min="0" value="">
                 </label>
                 <label>Horas
-                  <input type="number" step="0.5" name="hours" min="0" value="" required>
+                  <input type="number" step="0.5" name="hours" min="0" value="">
                 </label>
                 <label>Observações
                   <textarea name="notes" rows="4" placeholder="Escreva aqui..."></textarea>
@@ -234,6 +244,22 @@
                 {% else %}
                   <div class="inbox-item">Nenhum relatório recebido ainda.</div>
                 {% endfor %}
+              </div>
+            </section>
+          {% endif %}
+
+          {% if user.role != 'manager' %}
+            <section class="card section-banner">
+              <p class="eyebrow">Conta</p>
+              <div class="panel-header compact">
+                <div>
+                  <h3>Gerenciar minha conta</h3>
+                  <p class="muted">Você pode excluir sua própria conta quando quiser. Seus relatórios também serão removidos.</p>
+                </div>
+                <form class="print-form" method="post" action="{{ url_for('delete_account') }}" onsubmit="return confirm('Tem certeza que deseja excluir sua própria conta? Esta ação remove seus relatórios também.');">
+                  <input type="hidden" name="user_id" value="{{ user.id }}">
+                  <button class="secondary-btn danger-btn" type="submit">Excluir minha conta</button>
+                </form>
               </div>
             </section>
           {% endif %}

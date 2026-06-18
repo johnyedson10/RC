@@ -2,6 +2,7 @@ from datetime import datetime
 from os import getenv
 from pathlib import Path
 from collections import defaultdict
+import unicodedata
 
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
@@ -22,7 +23,6 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = getenv("SECRET_KEY", "change-this-secret-key")
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_REFRESH_EACH_REQUEST"] = False
-app.config["PERMANENT_SESSION_LIFETIME"] = 0
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 database_url = getenv("DATABASE_URL")
@@ -75,7 +75,23 @@ def current_user():
     user_id = session.get("user_id")
     if not user_id:
         return None
-    return db.session.get(User, user_id)
+    user = db.session.get(User, user_id)
+    if not user:
+        session.pop("user_id", None)
+    return user
+
+
+def normalize_name(value):
+    text = " ".join(value.strip().split()).lower()
+    text = unicodedata.normalize("NFKD", text)
+    return "".join(char for char in text if not unicodedata.combining(char))
+
+
+def display_name(value):
+    parts = value.strip().split()
+    if len(parts) >= 2:
+        return f"{parts[0]} {parts[-1]}"
+    return parts[0] if parts else ""
 
 
 def month_order(month_name):
@@ -164,7 +180,15 @@ def register():
         flash("Preencha nome e senha.")
         return redirect(url_for("index"))
 
-    if User.query.filter_by(name=name).first():
+    normalized_name = normalize_name(name)
+    name_parts = name.split()
+    if len(name_parts) < 2:
+        flash("Digite apenas primeiro nome e sobrenome.")
+        return redirect(url_for("index"))
+
+    name = display_name(name)
+
+    if any(normalize_name(user.name) == normalized_name for user in User.query.all()):
         flash("Já existe uma conta com esse nome.")
         return redirect(url_for("index"))
 
@@ -176,6 +200,7 @@ def register():
     user.set_password(password)
     db.session.add(user)
     db.session.commit()
+    session.permanent = False
     session["user_id"] = user.id
     session.modified = True
     flash("Conta criada com sucesso.")
@@ -186,7 +211,8 @@ def register():
 def login():
     name = request.form.get("name", "").strip()
     password = request.form.get("password", "")
-    user = User.query.filter_by(name=name).first()
+    normalized_name = normalize_name(name)
+    user = next((item for item in User.query.all() if normalize_name(item.name) == normalized_name), None)
 
     if not user or not user.check_password(password):
         flash("Conta não encontrada ou senha incorreta.")
@@ -224,10 +250,6 @@ def delete_account():
 
     if session_user_id and form_user_id and session_user_id != form_user_id:
         flash("A conta logada não confere com a conta solicitada para exclusão.")
-        return redirect(url_for("index"))
-
-    if user.role != "manager":
-        flash("A exclusão da conta está disponível apenas para o Secretário da Congregação.")
         return redirect(url_for("index"))
 
     user_name = user.name
@@ -273,8 +295,10 @@ def save_report():
 
     month = request.form.get("month", "").strip()
     participated = request.form.get("participated") == "on"
-    bible_studies = int(request.form.get("bible_studies", 0) or 0)
-    hours = float(request.form.get("hours", 0) or 0)
+    bible_studies_raw = request.form.get("bible_studies", "").strip()
+    bible_studies = int(bible_studies_raw) if bible_studies_raw else 0
+    hours_raw = request.form.get("hours", "").strip()
+    hours = float(hours_raw) if hours_raw else 0
     notes = request.form.get("notes", "").strip()
 
     report = Report.query.filter_by(user_id=user.id, month=month).first()
