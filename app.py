@@ -177,6 +177,7 @@ def register():
     db.session.add(user)
     db.session.commit()
     session["user_id"] = user.id
+    session.modified = True
     flash("Conta criada com sucesso.")
     return redirect(url_for("index"))
 
@@ -193,6 +194,7 @@ def login():
 
     session.permanent = False
     session["user_id"] = user.id
+    session.modified = True
     flash("Login realizado.")
     return redirect(url_for("index"))
 
@@ -206,9 +208,22 @@ def logout():
 
 @app.route("/delete-account", methods=["POST"])
 def delete_account():
-    user = current_user()
+    session_user_id = session.get("user_id")
+    form_user_id = request.form.get("user_id", type=int)
+    user_id = session_user_id or form_user_id
+
+    if not user_id:
+        flash("Faça login novamente como Secretário da Congregação para excluir a conta.")
+        return redirect(url_for("index"))
+
+    user = db.session.get(User, user_id)
     if not user:
-        flash("Faça login para excluir a conta.")
+        session.pop("user_id", None)
+        flash("Sua sessão expirou. Faça login novamente como Secretário da Congregação.")
+        return redirect(url_for("index"))
+
+    if session_user_id and form_user_id and session_user_id != form_user_id:
+        flash("A conta logada não confere com a conta solicitada para exclusão.")
         return redirect(url_for("index"))
 
     if user.role != "manager":
@@ -216,12 +231,11 @@ def delete_account():
         return redirect(url_for("index"))
 
     user_name = user.name
-    user_role = user.role
-    db.session.query(Report).filter_by(user_id=user.id).delete(synchronize_session=False)
+    db.session.query(Report).filter_by(user_id=user_id).delete(synchronize_session=False)
     db.session.delete(user)
     db.session.commit()
     session.pop("user_id", None)
-    flash(f"Sua conta de {user_name} ({user_role}) foi excluída.")
+    flash(f"Sua conta de {user_name} foi excluída.")
     return redirect(url_for("index"))
 
 
@@ -235,10 +249,27 @@ def whoami():
 
 @app.route("/save-report", methods=["POST"])
 def save_report():
-    user = current_user()
-    if not user:
+    session_user_id = session.get("user_id")
+    form_user_id = request.form.get("user_id", type=int)
+    user_id = session_user_id or form_user_id
+
+    if not user_id:
         flash("Faça login para salvar o relatório.")
         return redirect(url_for("index"))
+
+    user = db.session.get(User, user_id)
+    if not user:
+        session.pop("user_id", None)
+        flash("Sua sessão expirou. Faça login novamente para salvar o relatório.")
+        return redirect(url_for("index"))
+
+    if session_user_id and form_user_id and session_user_id != form_user_id:
+        flash("A conta logada não confere com o relatório enviado.")
+        return redirect(url_for("index"))
+
+    session["user_id"] = user.id
+    session.permanent = False
+    session.modified = True
 
     month = request.form.get("month", "").strip()
     participated = request.form.get("participated") == "on"
