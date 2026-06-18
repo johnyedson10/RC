@@ -302,9 +302,12 @@ def save_report():
     notes = request.form.get("notes", "").strip()
 
     report = Report.query.filter_by(user_id=user.id, month=month).first()
-    if not report:
-        report = Report(user_id=user.id, month=month)
-        db.session.add(report)
+    if report:
+        flash("Já existe um relatório salvo para este mês. Só é permitido enviar um relatório por mês.")
+        return redirect(url_for("index", month=month))
+
+    report = Report(user_id=user.id, month=month)
+    db.session.add(report)
 
     report.participated = participated
     report.bible_studies = bible_studies

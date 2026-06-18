@@ -83,14 +83,24 @@ body {
   font-size: 13px;
 }
 
-.hint-card {
-  background: rgba(255,255,255,0.08);
-  color: #f8efe2;
-  border: 1px solid rgba(255,255,255,0.14);
-  backdrop-filter: blur(8px);
+.sidebar-mark {
+  margin-top: auto;
+  align-self: stretch;
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
 }
 
-.hint-card ul { padding-left: 18px; margin: 12px 0 0; }
+.sidebar-mark-svg {
+  width: 100%;
+  max-width: 210px;
+  max-height: 150px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.18));
+}
 
 .main {
   padding: 28px;
