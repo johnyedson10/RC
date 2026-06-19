@@ -122,6 +122,34 @@
             </form>
           </div>
         {% else %}
+          <section class="dashboard-hero">
+            <div class="dashboard-hero-copy">
+              <p class="eyebrow">{{ 'Área administrativa' if user.role == 'manager' else 'Área do publicador' }}</p>
+              <h2>{{ user.name }}</h2>
+              <p class="muted">
+                {% if user.role == 'manager' %}
+                  Acompanhe os relatórios organizados da congregação e mantenha o controle da sua própria conta.
+                {% else %}
+                  Preencha seu relatório mensal com calma e acompanhe o envio pela sua conta.
+                {% endif %}
+              </p>
+            </div>
+            <div class="dashboard-hero-metrics">
+              <div class="metric-card">
+                <span class="metric-label">Conta</span>
+                <strong>{{ 'Secretário' if user.role == 'manager' else 'Publicador' }}</strong>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">Mês</span>
+                <strong>{{ selected_month }}</strong>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">Status</span>
+                <strong>{% if report %}Relatório salvo{% else %}Em aberto{% endif %}</strong>
+              </div>
+            </div>
+          </section>
+
           <div class="status-row">
             <div>
               <p class="eyebrow">Conectado</p>
@@ -231,7 +259,7 @@
                 {% for group in inbox_groups %}
                   <div class="inbox-group">
                     <div class="inbox-group-head">
-                      <strong>{{ group.user.name }}</strong>
+                      <strong>{{ group.user }}</strong>
                       <span>{{ group.reports|length }} relatório{% if group.reports|length != 1 %}s{% endif %}</span>
                     </div>
                     <div class="inbox-list">

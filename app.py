@@ -6,6 +6,7 @@ import unicodedata
 
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import inspect, text
 from werkzeug.security import check_password_hash, generate_password_hash
 
 
@@ -60,7 +61,8 @@ class User(db.Model):
 
 class Report(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    author_name = db.Column(db.String(120), nullable=False, default="")
     month = db.Column(db.String(20), nullable=False)
     participated = db.Column(db.Boolean, default=False)
     bible_studies = db.Column(db.Integer, default=0)
@@ -107,6 +109,17 @@ def month_order(month_name):
 
 def init_db():
     db.create_all()
+    inspector = inspect(db.engine)
+    report_columns = {column["name"] for column in inspector.get_columns("report")}
+    if "author_name" not in report_columns:
+        db.session.execute(text("ALTER TABLE report ADD COLUMN author_name VARCHAR(120) NOT NULL DEFAULT ''"))
+        db.session.commit()
+    if "user_id" in report_columns:
+        try:
+            db.session.execute(text("ALTER TABLE report ALTER COLUMN user_id DROP NOT NULL"))
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
     manager = User.query.filter_by(role="manager").first()
     if manager and manager.name == "Responsável":
         manager.name = "Secretário da Congregação"
@@ -150,13 +163,14 @@ def index():
             reports = Report.query.order_by(Report.created_at.desc()).all()
             grouped = defaultdict(list)
             for item in reports:
-                grouped[item.user].append(item)
+                author_label = item.author_name or (item.user.name if item.user else "Conta excluída")
+                grouped[author_label].append(item)
             inbox_groups = [
                 {
                     "user": member,
                     "reports": sorted(items, key=lambda r: (month_order(r.month), r.created_at or datetime.min)),
                 }
-                for member, items in sorted(grouped.items(), key=lambda pair: pair[0].name.lower())
+                for member, items in sorted(grouped.items(), key=lambda pair: pair[0].lower())
             ]
 
     return render_template(
@@ -253,7 +267,7 @@ def delete_account():
         return redirect(url_for("index"))
 
     user_name = user.name
-    db.session.query(Report).filter_by(user_id=user_id).delete(synchronize_session=False)
+    db.session.query(Report).filter_by(user_id=user_id).update({"user_id": None}, synchronize_session=False)
     db.session.delete(user)
     db.session.commit()
     session.pop("user_id", None)
@@ -307,6 +321,7 @@ def save_report():
         return redirect(url_for("index", month=month))
 
     report = Report(user_id=user.id, month=month)
+    report.author_name = user.name
     db.session.add(report)
 
     report.participated = participated
