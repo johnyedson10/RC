@@ -102,6 +102,7 @@
               <label>Nome do publicador
                 <input name="name" type="text" placeholder="Digite o nome do publicador" required autocomplete="off" autocapitalize="off" spellcheck="false" value="">
               </label>
+              <p class="muted helper-note">Use apenas primeiro nome e sobrenome. O sistema normaliza letras maiúsculas, minúsculas e acentos.</p>
               <label>Senha
                 <input name="password" type="password" placeholder="Crie uma senha" required autocomplete="off" autocapitalize="off" spellcheck="false" value="">
               </label>
@@ -181,7 +182,7 @@
                   {% if user.role == 'manager' %}MEU RELATÓRIO MENSAL{% else %}RELATÓRIO DE SERVIÇO DE CAMPO{% endif %}
                 </div>
                 <div class="report-lines">
-                  <div class="report-row"><span>Nome:</span> <strong>{{ report.user.name if report else '' }}</strong></div>
+                  <div class="report-row"><span>Nome:</span> <strong>{{ report.author_name if report and report.author_name else user.name }}</strong></div>
                   <div class="report-row"><span>Mês:</span> <strong>{{ report.month if report else 'Selecionar mês' }}</strong></div>
                 </div>
                 <div class="report-box">
@@ -260,14 +261,24 @@
                   <div class="inbox-group">
                     <div class="inbox-group-head">
                       <strong>{{ group.user }}</strong>
+                      {% if group.user == 'Secretário da Congregação' %}
+                        <span class="status-pill">Secretário</span>
+                      {% endif %}
                       <span>{{ group.reports|length }} relatório{% if group.reports|length != 1 %}s{% endif %}</span>
                     </div>
                     <div class="inbox-list">
                       {% for item in group.reports %}
                         <div class="inbox-item">
-                          <strong>{{ item.month }}</strong>
-                          <div>Participou: {{ 'Sim' if item.participated else 'Não' }}</div>
-                          <div>Estudos bíblicos: {{ item.bible_studies }}</div>
+                          <div class="inbox-item-head">
+                            <strong>{{ item.month }}</strong>
+                            {% if item.user_id is none %}
+                              <span class="status-pill ghost-pill">Conta excluída</span>
+                            {% else %}
+                              <span class="status-pill">Conta ativa</span>
+                            {% endif %}
+                          </div>
+                          <div>Participou: {{ 'Sim' if item.participated else 'N?o' }}</div>
+                          <div>Estudos b?blicos: {{ item.bible_studies }}</div>
                           <div>Horas: {{ item.hours }}</div>
                           <div>Obs.: {{ item.notes if item.notes else '-' }}</div>
                         </div>
@@ -287,7 +298,7 @@
               <div class="panel-header compact">
                 <div>
                   <h3>Gerenciar minha conta</h3>
-                  <p class="muted">Você pode excluir sua própria conta quando quiser. Seus relatórios também serão removidos.</p>
+                  <p class="muted">Você pode excluir sua própria conta quando quiser. Seus relatórios permanecerão na lista do Secretário da Congregação.</p>
                 </div>
                 <form class="print-form" method="post" action="{{ url_for('delete_account') }}" onsubmit="return confirm('Tem certeza que deseja excluir sua própria conta? Esta ação remove seus relatórios também.');">
                   <input type="hidden" name="user_id" value="{{ user.id }}">

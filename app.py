@@ -62,7 +62,9 @@ class User(db.Model):
 class Report(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    person_key = db.Column(db.String(160), nullable=False, default="")
     author_name = db.Column(db.String(120), nullable=False, default="")
+    author_role = db.Column(db.String(20), nullable=False, default="publicador")
     month = db.Column(db.String(20), nullable=False)
     participated = db.Column(db.Boolean, default=False)
     bible_studies = db.Column(db.Integer, default=0)
@@ -96,6 +98,10 @@ def display_name(value):
     return parts[0] if parts else ""
 
 
+def person_key(value):
+    return normalize_name(display_name(value))
+
+
 def month_order(month_name):
     months = [
         "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -108,22 +114,34 @@ def month_order(month_name):
 
 
 def init_db():
-    db.create_all()
-    inspector = inspect(db.engine)
-    report_columns = {column["name"] for column in inspector.get_columns("report")}
-    if "author_name" not in report_columns:
-        db.session.execute(text("ALTER TABLE report ADD COLUMN author_name VARCHAR(120) NOT NULL DEFAULT ''"))
-        db.session.commit()
-    if "user_id" in report_columns:
-        try:
-            db.session.execute(text("ALTER TABLE report ALTER COLUMN user_id DROP NOT NULL"))
+    try:
+        db.create_all()
+        inspector = inspect(db.engine)
+        report_columns = {column["name"] for column in inspector.get_columns("report")}
+        if "person_key" not in report_columns:
+            db.session.execute(text("ALTER TABLE report ADD COLUMN person_key VARCHAR(160) NOT NULL DEFAULT ''"))
             db.session.commit()
-        except Exception:
-            db.session.rollback()
-    manager = User.query.filter_by(role="manager").first()
-    if manager and manager.name == "Responsável":
-        manager.name = "Secretário da Congregação"
-        db.session.commit()
+        if "author_name" not in report_columns:
+            db.session.execute(text("ALTER TABLE report ADD COLUMN author_name VARCHAR(120) NOT NULL DEFAULT ''"))
+            db.session.commit()
+        if "author_role" not in report_columns:
+            db.session.execute(text("ALTER TABLE report ADD COLUMN author_role VARCHAR(20) NOT NULL DEFAULT 'publicador'"))
+            db.session.commit()
+        if "person_key" in report_columns and "author_name" in report_columns and "author_role" in report_columns:
+            orphan_reports = Report.query.filter((Report.author_name == "") | (Report.author_role == "") | (Report.person_key == "")).all()
+            for report in orphan_reports:
+                if report.user:
+                    report.author_name = report.user.name
+                    report.author_role = report.user.role
+                    report.person_key = person_key(report.user.name)
+            if orphan_reports:
+                db.session.commit()
+        manager = User.query.filter_by(role="manager").first()
+        if manager and manager.name == "Responsável":
+            manager.name = "Secretário da Congregação"
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
 
 
 @app.after_request
@@ -163,14 +181,14 @@ def index():
             reports = Report.query.order_by(Report.created_at.desc()).all()
             grouped = defaultdict(list)
             for item in reports:
-                author_label = item.author_name or (item.user.name if item.user else "Conta excluída")
-                grouped[author_label].append(item)
+                label = item.author_name or (item.user.name if item.user else "Conta excluída")
+                grouped[(item.person_key or normalize_name(label), label)].append(item)
             inbox_groups = [
                 {
-                    "user": member,
+                    "user": member[1],
                     "reports": sorted(items, key=lambda r: (month_order(r.month), r.created_at or datetime.min)),
                 }
-                for member, items in sorted(grouped.items(), key=lambda pair: pair[0].lower())
+                for member, items in sorted(grouped.items(), key=lambda pair: pair[0][1].lower())
             ]
 
     return render_template(
@@ -197,7 +215,7 @@ def register():
     normalized_name = normalize_name(name)
     name_parts = name.split()
     if len(name_parts) < 2:
-        flash("Digite apenas primeiro nome e sobrenome.")
+        flash("Digite primeiro nome e sobrenome para continuar.")
         return redirect(url_for("index"))
 
     name = display_name(name)
@@ -267,7 +285,10 @@ def delete_account():
         return redirect(url_for("index"))
 
     user_name = user.name
-    db.session.query(Report).filter_by(user_id=user_id).update({"user_id": None}, synchronize_session=False)
+    db.session.query(Report).filter_by(user_id=user_id).update(
+        {"author_name": user_name, "user_id": None},
+        synchronize_session=False,
+    )
     db.session.delete(user)
     db.session.commit()
     session.pop("user_id", None)
@@ -316,12 +337,16 @@ def save_report():
     notes = request.form.get("notes", "").strip()
 
     report = Report.query.filter_by(user_id=user.id, month=month).first()
+    if not report:
+        report = Report.query.filter_by(person_key=person_key(user.name), month=month).first()
     if report:
         flash("Já existe um relatório salvo para este mês. Só é permitido enviar um relatório por mês.")
         return redirect(url_for("index", month=month))
 
     report = Report(user_id=user.id, month=month)
+    report.person_key = person_key(user.name)
     report.author_name = user.name
+    report.author_role = user.role
     db.session.add(report)
 
     report.participated = participated
