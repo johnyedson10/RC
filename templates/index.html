@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
@@ -271,10 +271,10 @@
                         <div class="inbox-item">
                           <div class="inbox-item-head">
                             <strong>{{ item.month }}</strong>
-                            {% if item.user_id is none %}
-                              <span class="status-pill ghost-pill">Conta excluída</span>
-                            {% else %}
+                            {% if item.is_active %}
                               <span class="status-pill">Conta ativa</span>
+                            {% else %}
+                              <span class="status-pill ghost-pill">Conta excluída</span>
                             {% endif %}
                           </div>
                           <div>Participou: {{ 'Sim' if item.participated else 'Não' }}</div>

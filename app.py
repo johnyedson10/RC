@@ -129,12 +129,20 @@ def init_db():
             db.session.commit()
         if "person_key" in report_columns and "author_name" in report_columns and "author_role" in report_columns:
             orphan_reports = Report.query.filter((Report.author_name == "") | (Report.author_role == "") | (Report.person_key == "")).all()
-            for report in orphan_reports:
-                if report.user:
-                    report.author_name = report.user.name
-                    report.author_role = report.user.role
-                    report.person_key = person_key(report.user.name)
             if orphan_reports:
+                active_users = User.query.all()
+                active_by_key = {person_key(item.name): item for item in active_users}
+                for report in orphan_reports:
+                    source_user = report.user
+                    if not source_user and report.author_name:
+                        source_user = active_by_key.get(person_key(report.author_name))
+                    if source_user:
+                        report.author_name = source_user.name
+                        report.author_role = source_user.role
+                    if not report.person_key:
+                        source_name = report.author_name or (source_user.name if source_user else "")
+                        if source_name:
+                            report.person_key = person_key(source_name)
                 db.session.commit()
         manager = User.query.filter_by(role="manager").first()
         if manager and manager.name == "Responsável":
@@ -176,19 +184,32 @@ def index():
     can_create_manager = User.query.filter_by(role="manager").first() is None
 
     if user:
-        report = Report.query.filter_by(user_id=user.id, month=selected_month).first()
+        stable_key = person_key(user.name)
+        report = (
+            Report.query.filter(
+                (Report.user_id == user.id) | (Report.person_key == stable_key) | (Report.person_key == normalize_name(user.name)),
+                Report.month == selected_month,
+            )
+            .order_by(Report.created_at.desc())
+            .first()
+        )
         if user.role == "manager":
             reports = Report.query.order_by(Report.created_at.desc()).all()
             grouped = defaultdict(list)
+            active_person_keys = {person_key(item.name) for item in User.query.all()}
             for item in reports:
                 label = item.author_name or (item.user.name if item.user else "Conta excluída")
-                grouped[(item.person_key or normalize_name(label), label)].append(item)
+                item.is_active = (item.person_key or normalize_name(label)) in active_person_keys
+                grouped[item.person_key or normalize_name(label)].append(item)
             inbox_groups = [
                 {
-                    "user": member[1],
+                    "user": items[0].author_name or (items[0].user.name if items[0].user else "Conta excluída"),
                     "reports": sorted(items, key=lambda r: (month_order(r.month), r.created_at or datetime.min)),
                 }
-                for member, items in sorted(grouped.items(), key=lambda pair: pair[0][1].lower())
+                for _, items in sorted(
+                    grouped.items(),
+                    key=lambda pair: (pair[1][0].author_name or pair[0]).lower(),
+                )
             ]
 
     return render_template(
@@ -198,6 +219,7 @@ def index():
         selected_month=selected_month,
         report=report,
         inbox_groups=inbox_groups,
+        active_person_keys=active_person_keys if user and user.role == "manager" else set(),
         can_create_manager=can_create_manager,
     )
 
@@ -339,6 +361,10 @@ def save_report():
     report = Report.query.filter_by(user_id=user.id, month=month).first()
     if not report:
         report = Report.query.filter_by(person_key=person_key(user.name), month=month).first()
+    if not report:
+        report = Report.query.filter_by(person_key=normalize_name(user.name), month=month).first()
+    if not report:
+        report = Report.query.filter_by(author_name=user.name, month=month).first()
     if report:
         flash("Já existe um relatório salvo para este mês. Só é permitido enviar um relatório por mês.")
         return redirect(url_for("index", month=month))
