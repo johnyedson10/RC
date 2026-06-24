@@ -113,6 +113,14 @@ def month_order(month_name):
         return len(months)
 
 
+def is_report_delayed(report):
+    if not report or not report.created_at:
+        return False
+    created_order = report.created_at.month - 1
+    report_order = month_order(report.month)
+    return created_order > report_order
+
+
 def init_db():
     try:
         db.create_all()
@@ -193,6 +201,8 @@ def index():
             .order_by(Report.created_at.desc())
             .first()
         )
+        if report:
+            report.is_delayed = is_report_delayed(report)
         if user.role == "manager":
             reports = Report.query.order_by(Report.created_at.desc()).all()
             grouped = defaultdict(list)
@@ -200,6 +210,7 @@ def index():
             for item in reports:
                 label = item.author_name or (item.user.name if item.user else "Conta excluída")
                 item.is_active = (item.person_key or normalize_name(label)) in active_person_keys
+                item.is_delayed = is_report_delayed(item)
                 grouped[item.person_key or normalize_name(label)].append(item)
             inbox_groups = [
                 {

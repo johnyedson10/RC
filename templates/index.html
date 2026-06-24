@@ -185,6 +185,12 @@
                   <div class="report-row"><span>Nome:</span> <strong>{{ report.author_name if report and report.author_name else user.name }}</strong></div>
                   <div class="report-row"><span>Mês:</span> <strong>{{ report.month if report else 'Selecionar mês' }}</strong></div>
                 </div>
+                {% if report and report.is_delayed %}
+                  <div class="report-box">
+                    <div class="report-question">Status do envio</div>
+                    <div class="report-answer">Enviado em atraso</div>
+                  </div>
+                {% endif %}
                 <div class="report-box">
                   <div class="report-question">Marque se você participou em alguma modalidade do ministério durante o mês.</div>
                   <div class="report-answer">{{ 'Sim' if report and report.participated else '' }}</div>
@@ -275,6 +281,9 @@
                               <span class="status-pill">Conta ativa</span>
                             {% else %}
                               <span class="status-pill ghost-pill">Conta excluída</span>
+                            {% endif %}
+                            {% if item.is_delayed %}
+                              <span class="status-pill ghost-pill">Enviado em atraso</span>
                             {% endif %}
                           </div>
                           <div>Participou: {{ 'Sim' if item.participated else 'Não' }}</div>
