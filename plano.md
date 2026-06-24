@@ -3,6 +3,8 @@
 ## Objetivo
 Quero deixar este sistema de relatórios funcionando de forma simples e organizada, com cadastro, login, envio de relatório e a área do Secretário da Congregação.
 
+
+
 ## O que precisa ficar certo
 - Cadastro de publicador e de Secretário da Congregação.
 - Login e logout sem erro.
