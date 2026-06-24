@@ -1,4 +1,4 @@
-# RC
+﻿# RC
 
 Sistema de relatórios mensais para publicadores e Secretário da Congregação.
 
