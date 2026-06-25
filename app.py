@@ -2,11 +2,14 @@ from datetime import datetime
 from os import getenv
 from pathlib import Path
 from collections import defaultdict
+import smtplib
 import unicodedata
+from email.message import EmailMessage
 
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import inspect, text
+from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from werkzeug.security import check_password_hash, generate_password_hash
 
 
@@ -26,6 +29,7 @@ app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_REFRESH_EACH_REQUEST"] = False
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SECURE"] = getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
 database_url = getenv("DATABASE_URL")
 env_name = getenv("FLASK_ENV", getenv("ENV", "development")).lower()
 is_production = env_name == "production"
@@ -44,11 +48,13 @@ app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
 }
 
 db = SQLAlchemy(app)
+reset_serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"])
 
 
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(120), nullable=False, unique=True)
+    email = db.Column(db.String(120), nullable=True, unique=True)
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default="publicador")
 
@@ -102,6 +108,44 @@ def person_key(value):
     return normalize_name(display_name(value))
 
 
+def make_reset_token(user_id):
+    return reset_serializer.dumps({"user_id": user_id}, salt="password-reset")
+
+
+def read_reset_token(token, max_age=3600):
+    data = reset_serializer.loads(token, salt="password-reset", max_age=max_age)
+    return data.get("user_id")
+
+
+def send_reset_email(user, reset_url):
+    smtp_host = getenv("SMTP_HOST", "").strip()
+    smtp_port = int(getenv("SMTP_PORT", "587"))
+    smtp_user = getenv("SMTP_USER", "").strip()
+    smtp_password = getenv("SMTP_PASSWORD", "").strip()
+    mail_from = getenv("MAIL_FROM", smtp_user).strip()
+    use_tls = getenv("SMTP_USE_TLS", "true").lower() == "true"
+
+    if not smtp_host or not smtp_user or not smtp_password or not mail_from:
+        raise RuntimeError("Configuração de e-mail incompleta.")
+
+    message = EmailMessage()
+    message["Subject"] = "Redefinição de senha"
+    message["From"] = mail_from
+    message["To"] = user.email
+    message.set_content(
+        f"Olá, {user.name}.\n\n"
+        f"Recebemos uma solicitação para redefinir sua senha.\n"
+        f"Acesse o link abaixo para criar uma nova senha:\n\n{reset_url}\n\n"
+        f"Se você não pediu isso, ignore esta mensagem."
+    )
+
+    with smtplib.SMTP(smtp_host, smtp_port, timeout=20) as server:
+        if use_tls:
+            server.starttls()
+        server.login(smtp_user, smtp_password)
+        server.send_message(message)
+
+
 def month_order(month_name):
     months = [
         "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -126,15 +170,28 @@ def init_db():
         db.create_all()
         inspector = inspect(db.engine)
         report_columns = {column["name"] for column in inspector.get_columns("report")}
+        user_columns = {column["name"] for column in inspector.get_columns("user")}
+
+        migration_needed = False
         if "person_key" not in report_columns:
             db.session.execute(text("ALTER TABLE report ADD COLUMN person_key VARCHAR(160) NOT NULL DEFAULT ''"))
-            db.session.commit()
+            migration_needed = True
         if "author_name" not in report_columns:
             db.session.execute(text("ALTER TABLE report ADD COLUMN author_name VARCHAR(120) NOT NULL DEFAULT ''"))
-            db.session.commit()
+            migration_needed = True
         if "author_role" not in report_columns:
             db.session.execute(text("ALTER TABLE report ADD COLUMN author_role VARCHAR(20) NOT NULL DEFAULT 'publicador'"))
+            migration_needed = True
+        if "email" not in user_columns:
+            db.session.execute(text("ALTER TABLE \"user\" ADD COLUMN email VARCHAR(120)"))
+            migration_needed = True
+
+        if migration_needed:
             db.session.commit()
+            inspector = inspect(db.engine)
+            report_columns = {column["name"] for column in inspector.get_columns("report")}
+            user_columns = {column["name"] for column in inspector.get_columns("user")}
+
         if "person_key" in report_columns and "author_name" in report_columns and "author_role" in report_columns:
             orphan_reports = Report.query.filter((Report.author_name == "") | (Report.author_role == "") | (Report.person_key == "")).all()
             if orphan_reports:
@@ -189,6 +246,7 @@ def index():
     selected_month = request.args.get("month", months[datetime.now().month - 1])
     report = None
     inbox_groups = []
+    users_list = []
     can_create_manager = User.query.filter_by(role="manager").first() is None
 
     if user:
@@ -204,6 +262,7 @@ def index():
         if report:
             report.is_delayed = is_report_delayed(report)
         if user.role == "manager":
+            users_list = User.query.filter(User.role != "manager").order_by(User.name.asc()).all()
             reports = Report.query.order_by(Report.created_at.desc()).all()
             grouped = defaultdict(list)
             active_person_keys = {person_key(item.name) for item in User.query.all()}
@@ -230,6 +289,7 @@ def index():
         selected_month=selected_month,
         report=report,
         inbox_groups=inbox_groups,
+        users_list=users_list,
         active_person_keys=active_person_keys if user and user.role == "manager" else set(),
         can_create_manager=can_create_manager,
     )
@@ -238,11 +298,15 @@ def index():
 @app.route("/register", methods=["POST"])
 def register():
     name = request.form.get("name", "").strip()
+    email = request.form.get("email", "").strip().lower()
     password = request.form.get("password", "")
     role = request.form.get("role", "publicador")
 
     if not name or not password:
         flash("Preencha nome e senha.")
+        return redirect(url_for("index"))
+    if not email:
+        flash("Preencha o e-mail para criar a conta.")
         return redirect(url_for("index"))
 
     normalized_name = normalize_name(name)
@@ -256,12 +320,15 @@ def register():
     if any(normalize_name(user.name) == normalized_name for user in User.query.all()):
         flash("Já existe uma conta com esse nome.")
         return redirect(url_for("index"))
+    if User.query.filter_by(email=email).first():
+        flash("Já existe uma conta com esse e-mail.")
+        return redirect(url_for("index"))
 
     if role == "manager" and User.query.filter_by(role="manager").first():
         flash("Já existe uma conta de Secretário da Congregação. Não é possível criar outra enquanto esta estiver ativa.")
         return redirect(url_for("index"))
 
-    user = User(name=name, role=role)
+    user = User(name=name, email=email, role=role)
     user.set_password(password)
     db.session.add(user)
     db.session.commit()
@@ -288,6 +355,81 @@ def login():
     session.modified = True
     flash("Login realizado.")
     return redirect(url_for("index"))
+
+
+@app.route("/forgot-password", methods=["POST"])
+def forgot_password():
+    email = request.form.get("email", "").strip().lower()
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        flash("Se o e-mail estiver cadastrado, você receberá um link para redefinir a senha.")
+        return redirect(url_for("index"))
+
+    token = make_reset_token(user.id)
+    reset_url = url_for("reset_password", token=token, _external=True)
+    try:
+        send_reset_email(user, reset_url)
+        flash("Enviamos um link de redefinição para o seu e-mail.")
+    except Exception:
+        flash("Não foi possível enviar o e-mail de redefinição. Verifique a configuração do SMTP.")
+    return redirect(url_for("index"))
+
+
+@app.route("/admin-reset-password", methods=["POST"])
+def admin_reset_password():
+    user = current_user()
+    if not user or user.role != "manager":
+        flash("Faça login como Secretário da Congregação para redefinir senha.")
+        return redirect(url_for("index"))
+
+    target_user_id = request.form.get("user_id", type=int)
+    new_password = request.form.get("password", "").strip()
+    if not target_user_id or not new_password:
+        flash("Selecione o usuário e digite a nova senha.")
+        return redirect(url_for("index"))
+
+    target_user = db.session.get(User, target_user_id)
+    if not target_user:
+        flash("Usuário não encontrado.")
+        return redirect(url_for("index"))
+
+    if target_user.role == "manager":
+        flash("Não é possível redefinir a senha do Secretário da Congregação por este formulário.")
+        return redirect(url_for("index"))
+
+    target_user.set_password(new_password)
+    db.session.commit()
+    flash(f"Senha redefinida para {target_user.name}.")
+    return redirect(url_for("index"))
+
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def reset_password(token):
+    try:
+        user_id = read_reset_token(token)
+    except SignatureExpired:
+        flash("O link de redefinição expirou. Solicite um novo.")
+        return redirect(url_for("index"))
+    except BadSignature:
+        flash("Link de redefinição inválido.")
+        return redirect(url_for("index"))
+
+    user = db.session.get(User, user_id)
+    if not user:
+        flash("Usuário não encontrado para essa redefinição.")
+        return redirect(url_for("index"))
+
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        if not password:
+            flash("Digite uma nova senha.")
+            return redirect(url_for("reset_password", token=token))
+        user.password_hash = generate_password_hash(password)
+        db.session.commit()
+        flash("Senha atualizada com sucesso.")
+        return redirect(url_for("index"))
+
+    return render_template("reset_password.html", token=token, user=user)
 
 
 @app.route("/logout")

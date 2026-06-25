@@ -273,6 +273,16 @@ body {
   margin-bottom: 0;
 }
 
+.forgot-access {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(90, 73, 53, 0.12);
+}
+
+.forgot-access .muted {
+  margin-bottom: 10px;
+}
+
 input, select, textarea {
   width: 100%;
   margin-top: 6px;
