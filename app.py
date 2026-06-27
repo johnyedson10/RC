@@ -262,7 +262,7 @@ def index():
         if report:
             report.is_delayed = is_report_delayed(report)
         if user.role == "manager":
-            users_list = User.query.filter(User.role != "manager").order_by(User.name.asc()).all()
+            users_list = User.query.order_by(User.role.asc(), User.name.asc()).all()
             reports = Report.query.order_by(Report.created_at.desc()).all()
             grouped = defaultdict(list)
             active_person_keys = {person_key(item.name) for item in User.query.all()}
@@ -393,7 +393,7 @@ def admin_reset_password():
         flash("Usuário não encontrado.")
         return redirect(url_for("index"))
 
-    if target_user.role == "manager":
+    if target_user.role == "manager" and target_user.id != user.id:
         flash("Não é possível redefinir a senha do Secretário da Congregação por este formulário.")
         return redirect(url_for("index"))
 

@@ -327,7 +327,9 @@
                   <select name="user_id" required>
                     <option value="" selected disabled>Selecione um usuário</option>
                     {% for account in users_list %}
-                      <option value="{{ account.id }}">{{ account.name }}{% if account.email %} - {{ account.email }}{% endif %}</option>
+                      <option value="{{ account.id }}">
+                        {{ account.name }}{% if account.role == 'manager' %} (Secretário da Congregação){% endif %}{% if account.email %} - {{ account.email }}{% endif %}
+                      </option>
                     {% endfor %}
                   </select>
                 </label>
