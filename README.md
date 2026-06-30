@@ -21,7 +21,15 @@ Crie um arquivo `.env` na raiz do projeto com:
 SECRET_KEY=coloque_uma_chave_segura_aqui
 DATABASE_URL=postgresql://usuario:senha@host/banco?sslmode=require
 FLASK_ENV=development
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=seuemail@gmail.com
+SMTP_PASSWORD=sua_senha_de_app_do_google
+MAIL_FROM=seuemail@gmail.com
+SMTP_USE_TLS=true
 ```
+
+Para o fluxo "Esqueceu a senha?", use uma conta Google com senha de app e mantenha o e-mail cadastrado no usuário, porque o link de redefinição é enviado para esse endereço.
 
 ## Instalação
 ```bash

@@ -10,6 +10,7 @@
   <link rel="manifest" href="{{ url_for('manifest') }}">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.svg') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
 </head>
 <body>
   <div class="app-shell">
@@ -51,19 +52,9 @@
         {% endif %}
       </div>
 
-      {% with messages = get_flashed_messages() %}
-        {% if messages %}
-          <div class="flash-wrap">
-            {% for message in messages %}
-              <div class="flash">{{ message }}</div>
-            {% endfor %}
-          </div>
-        {% endif %}
-      {% endwith %} 
-
       {% if not user %}
-        <div class="flash-wrap">
-          <div class="flash">Sua sessão não está ativa. Entre novamente para continuar.</div>
+        <div class="sr-only" aria-live="polite">
+          Sua sessão não está ativa. Entre novamente para continuar.
         </div>
       {% endif %}
 
@@ -79,46 +70,52 @@
 
           <div class="grid-2 auth-grid">
             <div class="card form-card">
-              <form method="post" action="{{ url_for('login') }}" autocomplete="off" name="login-form" data-reset-form="true">
+              <form method="post" action="{{ url_for('login') }}" autocomplete="off" name="login-form" novalidate data-preserve-state="true" data-state-key="login-form" data-validate-form="login">
                 <div class="autofill-block" aria-hidden="true">
                   <input type="text" tabindex="-1" autocomplete="username" name="fake-user">
                   <input type="password" tabindex="-1" autocomplete="new-password" name="fake-pass">
                 </div>
                 <h3>Login</h3>
                 <label>Nome
-                  <input name="name" type="text" placeholder="Seu nome" required autocomplete="off" autocapitalize="off" spellcheck="false" value="">
+                  <input name="name" type="text" placeholder="Seu nome" autocomplete="off" autocapitalize="off" spellcheck="false" value="">
+                  <span class="field-error" data-field-error-for="name"></span>
                 </label>
                 <label>Senha
-                  <input name="password" type="password" placeholder="Sua senha" required autocomplete="off" autocapitalize="off" spellcheck="false" value="">
+                  <input name="password" type="password" placeholder="Sua senha" autocomplete="off" autocapitalize="off" spellcheck="false" value="">
+                  <span class="field-error" data-field-error-for="password"></span>
                 </label>
                 <button class="primary-btn" type="submit">Entrar</button>
               </form>
               <div class="forgot-access">
                 <p class="muted">Esqueceu a senha? Use o e-mail cadastrado para receber o link de acesso.</p>
-                <form class="stack-form forgot-form" method="post" action="{{ url_for('forgot_password') }}" autocomplete="off">
+                <form class="stack-form forgot-form" method="post" action="{{ url_for('forgot_password') }}" autocomplete="off" novalidate data-preserve-state="true" data-state-key="forgot-password-form" data-validate-form="forgot">
                   <label>E-mail
-                    <input name="email" type="email" placeholder="Seu e-mail cadastrado" required autocomplete="email" value="">
+                    <input name="email" type="email" placeholder="Seu e-mail cadastrado" autocomplete="email" value="">
+                    <span class="field-error" data-field-error-for="email"></span>
                   </label>
                   <button class="secondary-btn" type="submit">Enviar link de redefinição</button>
                 </form>
               </div>
             </div>
 
-            <form class="card form-card" method="post" action="{{ url_for('register') }}" autocomplete="off" name="register-form" data-reset-form="true">
+            <form class="card form-card" method="post" action="{{ url_for('register') }}" autocomplete="off" name="register-form" novalidate data-preserve-state="true" data-state-key="register-form" data-validate-form="register">
               <div class="autofill-block" aria-hidden="true">
                 <input type="text" tabindex="-1" autocomplete="username" name="fake-user-register">
                 <input type="password" tabindex="-1" autocomplete="new-password" name="fake-pass-register">
               </div>
               <h3>Criar conta</h3>
               <label>E-mail
-                <input name="email" type="email" placeholder="Digite o e-mail do usuário" required autocomplete="email" value="">
+                <input name="email" type="email" placeholder="Digite o e-mail do usuário" autocomplete="email" value="">
+                <span class="field-error" data-field-error-for="email"></span>
               </label>
               <label>Nome do publicador
-                <input name="name" type="text" placeholder="Digite o nome do publicador" required autocomplete="off" autocapitalize="off" spellcheck="false" value="">
+                <input name="name" type="text" placeholder="Digite o nome do publicador" autocomplete="off" autocapitalize="off" spellcheck="false" value="">
+                <span class="field-error" data-field-error-for="name"></span>
               </label>
               <p class="muted helper-note">Use apenas primeiro nome e sobrenome. O sistema normaliza letras maiúsculas, minúsculas e acentos.</p>
               <label>Senha
-                <input name="password" type="password" placeholder="Crie uma senha" required autocomplete="off" autocapitalize="off" spellcheck="false" value="">
+                <input name="password" type="password" placeholder="Crie uma senha" autocomplete="off" autocapitalize="off" spellcheck="false" value="">
+                <span class="field-error" data-field-error-for="password"></span>
               </label>
               <label>Tipo de conta
                 <select name="role">
@@ -228,7 +225,7 @@
 
             <section class="card form-card">
               <h3>Preencher relatório do publicador</h3>
-              <form class="stack-form" method="post" action="{{ url_for('save_report') }}" autocomplete="off" name="report-form" data-reset-form="true" {% if report %}aria-disabled="true"{% endif %}>
+              <form class="stack-form" method="post" action="{{ url_for('save_report') }}" autocomplete="off" name="report-form" data-preserve-state="true" data-state-key="report-form" {% if report %}aria-disabled="true"{% endif %}>
                 <div class="autofill-block" aria-hidden="true">
                   <input type="text" tabindex="-1" autocomplete="off" name="fake-report-name">
                   <input type="number" tabindex="-1" autocomplete="off" name="fake-report-number">
@@ -361,16 +358,266 @@
     </main>
   </div>
 
+  {% set flash_messages = get_flashed_messages() %}
+  <script id="flash-data" type="application/json">{{ flash_messages | tojson }}</script>
+  <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js"></script>
   <script>
     window.addEventListener("DOMContentLoaded", () => {
-      document.querySelectorAll('[data-reset-form="true"]').forEach((form) => {
-        form.reset();
-        form.querySelectorAll('input').forEach((input) => {
-          if (input.type === "password" || input.type === "text") {
-            input.value = "";
+      const flashNode = document.getElementById("flash-data");
+      const flashMessages = flashNode ? JSON.parse(flashNode.textContent || "[]") : [];
+      const notyf = window.Notyf
+        ? new Notyf({
+            duration: 20000,
+            dismissible: true,
+            position: { x: "right", y: "top" },
+          })
+        : null;
+
+      const classifyMessage = (message) => {
+        const text = String(message).toLowerCase();
+        if (
+          text.includes("sucesso") ||
+          text.includes("realizado") ||
+          text.includes("enviamos") ||
+          text.includes("atualizada") ||
+          text.includes("redefinida") ||
+          text.includes("excluída") ||
+          text.includes("salvo") ||
+          text.includes("foi excluída")
+        ) {
+          return "success";
+        }
+        if (
+          text.includes("não") ||
+          text.includes("inválido") ||
+          text.includes("expirou") ||
+          text.includes("falha") ||
+          text.includes("erro") ||
+          text.includes("incompleta") ||
+          text.includes("incorreta") ||
+          text.includes("preencha") ||
+          text.includes("selecione") ||
+          text.includes("encontrado")
+        ) {
+          return "error";
+        }
+        return "info";
+      };
+
+      const formStorageKey = (form) => `campoapp:${form.dataset.stateKey || form.name || form.id || "form"}`;
+
+      const showToast = (message, type = "info") => {
+        if (!notyf) return;
+        if (type === "success") {
+          notyf.success(message);
+          return;
+        }
+        if (type === "error") {
+          notyf.error(message);
+          return;
+        }
+        notyf.open({ type: "info", message });
+      };
+
+      const getField = (form, fieldName) => form.querySelector(`[name="${fieldName}"]`);
+      const getErrorNode = (form, fieldName) => form.querySelector(`[data-field-error-for="${fieldName}"]`);
+
+      const clearFieldError = (form, fieldName) => {
+        const field = getField(form, fieldName);
+        const errorNode = getErrorNode(form, fieldName);
+        if (field) {
+          field.removeAttribute("aria-invalid");
+          field.classList.remove("is-invalid");
+        }
+        if (errorNode) {
+          errorNode.textContent = "";
+          errorNode.classList.remove("is-visible");
+        }
+      };
+
+      const setFieldError = (form, fieldName, message) => {
+        const field = getField(form, fieldName);
+        const errorNode = getErrorNode(form, fieldName);
+        if (field) {
+          field.setAttribute("aria-invalid", "true");
+          field.classList.add("is-invalid");
+        }
+        if (errorNode) {
+          errorNode.textContent = message;
+          errorNode.classList.add("is-visible");
+        }
+      };
+
+      const clearAllFieldErrors = (form) => {
+        ["name", "email", "password"].forEach((fieldName) => clearFieldError(form, fieldName));
+      };
+
+      const isValidEmail = (value) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(value).trim());
+
+      const validateAuthForm = (form, kind) => {
+        const errors = {};
+        const name = getField(form, "name");
+        const email = getField(form, "email");
+        const password = getField(form, "password");
+
+        if (kind === "register") {
+          const nameValue = name ? name.value.trim() : "";
+          const emailValue = email ? email.value.trim() : "";
+          const passwordValue = password ? password.value : "";
+
+          if (!emailValue) {
+            errors.email = "Preencha o e-mail para criar a conta.";
+          } else if (!isValidEmail(emailValue)) {
+            errors.email = "Digite um e-mail válido para criar a conta.";
           }
+
+          if (!nameValue) {
+            errors.name = "Preencha o nome para criar a conta.";
+          }
+
+          if (!passwordValue) {
+            errors.password = "Preencha a senha para criar a conta.";
+          } else if (passwordValue.length < 6) {
+            errors.password = "A senha deve ter no mínimo 6 dígitos.";
+          }
+
+          return errors;
+        }
+
+        if (kind === "login") {
+          const nameValue = name ? name.value.trim() : "";
+          const passwordValue = password ? password.value : "";
+
+          if (!nameValue) {
+            errors.name = "Preencha o nome para entrar.";
+          }
+
+          if (!passwordValue) {
+            errors.password = "Preencha a senha para entrar.";
+          } else if (passwordValue.length < 6) {
+            errors.password = "A senha deve ter no mínimo 6 dígitos.";
+          }
+
+          return errors;
+        }
+
+        if (kind === "forgot") {
+          const emailValue = email ? email.value.trim() : "";
+
+          if (!emailValue) {
+            errors.email = "Preencha o e-mail para receber o link de redefinição.";
+          } else if (!isValidEmail(emailValue)) {
+            errors.email = "Digite um e-mail válido para continuar.";
+          }
+
+          return errors;
+        }
+
+        return errors;
+      };
+
+      const renderAuthErrors = (form, errors) => {
+        clearAllFieldErrors(form);
+        const entries = Object.entries(errors);
+        if (!entries.length) return;
+        entries.forEach(([fieldName, message]) => setFieldError(form, fieldName, message));
+        showToast(entries[0][1], "error");
+        const firstField = getField(form, entries[0][0]);
+        if (firstField) {
+          firstField.focus();
+        }
+      };
+
+      const persistableControls = (form) =>
+        Array.from(form.querySelectorAll("input, textarea, select")).filter((control) => {
+          if (control.disabled) return false;
+          if (control.type === "hidden" || control.type === "submit" || control.type === "button" || control.type === "file") return false;
+          if (control.closest(".autofill-block")) return false;
+          return true;
+        });
+
+      const saveFormState = (form) => {
+        const payload = {};
+        persistableControls(form).forEach((control) => {
+          if (control.type === "checkbox") {
+            payload[control.name] = control.checked;
+            return;
+          }
+          if (control.type === "radio") {
+            if (control.checked) {
+              payload[control.name] = control.value;
+            }
+            return;
+          }
+          payload[control.name] = control.value;
+        });
+        sessionStorage.setItem(formStorageKey(form), JSON.stringify(payload));
+      };
+
+      const restoreFormState = (form) => {
+        const raw = sessionStorage.getItem(formStorageKey(form));
+        if (!raw) return;
+        let payload = {};
+        try {
+          payload = JSON.parse(raw);
+        } catch (error) {
+          sessionStorage.removeItem(formStorageKey(form));
+          return;
+        }
+
+        persistableControls(form).forEach((control) => {
+          if (!(control.name in payload)) return;
+          if (control.type === "checkbox") {
+            control.checked = Boolean(payload[control.name]);
+            return;
+          }
+          if (control.type === "radio") {
+            control.checked = control.value === payload[control.name];
+            return;
+          }
+          control.value = payload[control.name];
+        });
+      };
+
+      const clearPersistedState = () => {
+        document.querySelectorAll('[data-preserve-state="true"]').forEach((form) => {
+          sessionStorage.removeItem(formStorageKey(form));
+        });
+      };
+
+      document.querySelectorAll('[data-preserve-state="true"]').forEach((form) => {
+        restoreFormState(form);
+        persistableControls(form).forEach((control) => {
+          control.addEventListener("input", () => saveFormState(form));
+          control.addEventListener("change", () => saveFormState(form));
+        });
+        form.addEventListener("submit", () => saveFormState(form));
+      });
+
+      document.querySelectorAll('[data-validate-form]').forEach((form) => {
+        const kind = form.dataset.validateForm;
+        form.addEventListener("input", (event) => {
+          const target = event.target;
+          if (!target || !target.name) return;
+          clearFieldError(form, target.name);
+        });
+
+        form.addEventListener("submit", (event) => {
+          const errors = validateAuthForm(form, kind);
+          if (!Object.keys(errors).length) return;
+          event.preventDefault();
+          renderAuthErrors(form, errors);
         });
       });
+
+      flashMessages.forEach((message) => {
+        const type = classifyMessage(message);
+        showToast(message, type);
+      });
+
+      if (flashMessages.some((message) => classifyMessage(message) === "success")) {
+        clearPersistedState();
+      }
     });
 
     if ("serviceWorker" in navigator) {

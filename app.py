@@ -1,4 +1,5 @@
 from datetime import datetime
+import re
 from os import getenv
 from pathlib import Path
 from collections import defaultdict
@@ -106,6 +107,13 @@ def display_name(value):
 
 def person_key(value):
     return normalize_name(display_name(value))
+
+
+EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def is_valid_email(value):
+    return bool(value) and bool(EMAIL_PATTERN.match(value))
 
 
 def make_reset_token(user_id):
@@ -302,11 +310,20 @@ def register():
     password = request.form.get("password", "")
     role = request.form.get("role", "publicador")
 
-    if not name or not password:
-        flash("Preencha nome e senha.")
+    if not name:
+        flash("Preencha o nome para criar a conta.")
         return redirect(url_for("index"))
     if not email:
         flash("Preencha o e-mail para criar a conta.")
+        return redirect(url_for("index"))
+    if not is_valid_email(email):
+        flash("Digite um e-mail válido para criar a conta.")
+        return redirect(url_for("index"))
+    if not password:
+        flash("Preencha a senha para criar a conta.")
+        return redirect(url_for("index"))
+    if len(password) < 6:
+        flash("A senha deve ter no mínimo 6 dígitos.")
         return redirect(url_for("index"))
 
     normalized_name = normalize_name(name)
@@ -343,6 +360,17 @@ def register():
 def login():
     name = request.form.get("name", "").strip()
     password = request.form.get("password", "")
+
+    if not name:
+        flash("Preencha o nome para entrar.")
+        return redirect(url_for("index"))
+    if not password:
+        flash("Preencha a senha para entrar.")
+        return redirect(url_for("index"))
+    if len(password) < 6:
+        flash("A senha deve ter no mínimo 6 dígitos.")
+        return redirect(url_for("index"))
+
     normalized_name = normalize_name(name)
     user = next((item for item in User.query.all() if normalize_name(item.name) == normalized_name), None)
 
@@ -360,9 +388,16 @@ def login():
 @app.route("/forgot-password", methods=["POST"])
 def forgot_password():
     email = request.form.get("email", "").strip().lower()
+    if not email:
+        flash("Preencha o e-mail para receber o link de redefinição.")
+        return redirect(url_for("index"))
+    if not is_valid_email(email):
+        flash("Digite um e-mail válido para continuar.")
+        return redirect(url_for("index"))
+
     user = User.query.filter_by(email=email).first()
     if not user:
-        flash("Se o e-mail estiver cadastrado, você receberá um link para redefinir a senha.")
+        flash("Não encontramos nenhuma conta com esse e-mail.")
         return redirect(url_for("index"))
 
     token = make_reset_token(user.id)
