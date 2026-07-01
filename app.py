@@ -165,6 +165,17 @@ def month_order(month_name):
         return len(months)
 
 
+def previous_month_name(month_name):
+    months = [
+        "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+        "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+    ]
+    try:
+        return months[(months.index(month_name) - 1) % len(months)]
+    except ValueError:
+        return month_name
+
+
 def is_report_delayed(report):
     if not report or not report.created_at:
         return False
@@ -251,7 +262,10 @@ def index():
         "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
         "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
     ]
-    selected_month = request.args.get("month", months[datetime.now().month - 1])
+    current_month_index = datetime.now().month - 1
+    previous_month_index = (current_month_index - 1) % 12
+    selected_month = request.args.get("month", months[previous_month_index])
+    report_loaded = request.args.get("submitted") == "1"
     report = None
     inbox_groups = []
     users_list = []
@@ -259,16 +273,17 @@ def index():
 
     if user:
         stable_key = person_key(user.name)
-        report = (
-            Report.query.filter(
-                (Report.user_id == user.id) | (Report.person_key == stable_key) | (Report.person_key == normalize_name(user.name)),
-                Report.month == selected_month,
+        if report_loaded:
+            report = (
+                Report.query.filter(
+                    (Report.user_id == user.id) | (Report.person_key == stable_key) | (Report.person_key == normalize_name(user.name)),
+                    Report.month == selected_month,
+                )
+                .order_by(Report.created_at.desc())
+                .first()
             )
-            .order_by(Report.created_at.desc())
-            .first()
-        )
-        if report:
-            report.is_delayed = is_report_delayed(report)
+            if report:
+                report.is_delayed = is_report_delayed(report)
         if user.role == "manager":
             users_list = User.query.order_by(User.role.asc(), User.name.asc()).all()
             reports = Report.query.order_by(Report.created_at.desc()).all()
@@ -278,6 +293,7 @@ def index():
                 label = item.author_name or (item.user.name if item.user else "Conta excluída")
                 item.is_active = (item.person_key or normalize_name(label)) in active_person_keys
                 item.is_delayed = is_report_delayed(item)
+                item.display_month = previous_month_name(item.month)
                 grouped[item.person_key or normalize_name(label)].append(item)
             inbox_groups = [
                 {
@@ -295,6 +311,7 @@ def index():
         user=user,
         months=months,
         selected_month=selected_month,
+        selected_work_month=previous_month_name(selected_month),
         report=report,
         inbox_groups=inbox_groups,
         users_list=users_list,
@@ -580,7 +597,7 @@ def save_report():
     db.session.commit()
 
     flash("Relatório salvo com sucesso.")
-    return redirect(url_for("index", month=month))
+    return redirect(url_for("index", month=month, submitted=1))
 
 
 @app.route("/manifest.webmanifest")

@@ -22,7 +22,7 @@
         <p class="eyebrow">CampoApp</p>
         <h1>Relatório mensal</h1>
         <p class="sidebar-text">
-          Preencha seu relatório de cada mês trabalhado e evie-o.
+          Preencha seu relatório de cada mês trabalhado e envie-o.
           O Secretário da Congregação recebe todos os relatórios.
         </p>
       </div>
@@ -130,12 +130,13 @@
                 <strong>{{ 'Secretário' if user.role == 'manager' else 'Publicador' }}</strong>
               </div>
               <div class="metric-card">
-                <span class="metric-label">Mês</span>
+                <span class="metric-label">Mês de trabalho</span>
                 <strong>{{ selected_month }}</strong>
+                <div class="metric-subtext">Relatório referente ao mês anterior</div>
               </div>
               <div class="metric-card">
                 <span class="metric-label">Status</span>
-                <strong>{% if report %}Relatório salvo{% else %}Em aberto{% endif %}</strong>
+                <strong>{% if report %}Enviado{% else %}Em aberto{% endif %}</strong>
               </div>
             </div>
           </section>
@@ -172,7 +173,7 @@
                 </div>
                 <div class="report-lines">
                   <div class="report-row"><span>Nome:</span> <strong>{{ report.author_name if report and report.author_name else user.name }}</strong></div>
-                  <div class="report-row"><span>Mês:</span> <strong>{{ report.month if report else 'Selecionar mês' }}</strong></div>
+                  <div class="report-row"><span>Mês:</span> <strong>{{ selected_work_month if report else selected_month }}</strong></div>
                 </div>
                 {% if report and report.is_delayed %}
                   <div class="report-box">
@@ -213,7 +214,7 @@
                   <select name="month" required>
                     <option value="" selected disabled>Selecionar mês</option>
                     {% for month in months %}
-                      <option value="{{ month }}">{{ month }}</option>
+                    <option value="{{ month }}" {% if month == selected_month %}selected{% endif %}>{{ month }}</option>
                     {% endfor %}
                   </select>
                 </label>
@@ -265,7 +266,7 @@
                       {% for item in group.reports %}
                         <div class="inbox-item">
                           <div class="inbox-item-head">
-                            <strong>{{ item.month }}</strong>
+                            <strong>{{ item.display_month if item.display_month else item.month }}</strong>
                             {% if item.is_active %}
                               <span class="status-pill">Conta ativa</span>
                             {% else %}
@@ -356,6 +357,7 @@
         if (
           text.includes("sucesso") ||
           text.includes("realizado") ||
+          text.includes("saiu da conta") ||
           text.includes("enviamos") ||
           text.includes("atualizada") ||
           text.includes("redefinida") ||

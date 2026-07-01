@@ -199,6 +199,13 @@ body {
   font-size: 1rem;
 }
 
+.metric-subtext {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
 .status-row {
   padding: 16px 18px;
   background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(245,249,252,0.96));
@@ -480,6 +487,42 @@ textarea { resize: vertical; }
   border-radius: 14px;
   padding: 12px 14px;
   box-shadow: 0 8px 18px rgba(0,0,0,.04);
+}
+
+.notyf {
+  z-index: 9999;
+}
+
+.notyf__toast {
+  border-radius: 14px !important;
+  box-shadow: 0 14px 32px rgba(25, 38, 53, 0.22) !important;
+  opacity: 1 !important;
+}
+
+.notyf__toast--success {
+  background: linear-gradient(180deg, #2f7a44, #245d34) !important;
+  color: #ffffff !important;
+}
+
+.notyf__toast--error {
+  background: linear-gradient(180deg, #b93f33, #8f2d25) !important;
+  color: #ffffff !important;
+}
+
+.notyf__toast--warning,
+.notyf__toast--info {
+  background: linear-gradient(180deg, #2e6f9e, #1f577e) !important;
+  color: #ffffff !important;
+}
+
+.notyf__toast .notyf__message {
+  color: inherit !important;
+  opacity: 1 !important;
+  font-weight: 700;
+}
+
+.notyf__toast .notyf__dismiss {
+  opacity: 0.95 !important;
 }
 
 .report-paper {
