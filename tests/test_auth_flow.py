@@ -26,6 +26,15 @@ def test_index_shows_forgot_password_message(client):
     response = client.get("/")
     assert response.status_code == 200
     assert "Esqueceu a senha? Use o e-mail cadastrado para receber o link de acesso." in response.get_data(as_text=True)
+    assert "Criar conta" in response.get_data(as_text=True)
+
+
+def test_register_page_is_separate_from_login_page(client):
+    response = client.get("/register")
+    assert response.status_code == 200
+    body = response.get_data(as_text=True)
+    assert "Cadastro" in body
+    assert "Voltar ao login" in body
 
 
 def test_registration_validates_required_fields_and_duplicates(client):

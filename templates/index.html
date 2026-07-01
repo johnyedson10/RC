@@ -68,14 +68,17 @@
             </div>
           </div>
 
-          <div class="grid-2 auth-grid">
-            <div class="card form-card">
+          <div class="auth-single">
+            <div class="card form-card auth-card">
               <form method="post" action="{{ url_for('login') }}" autocomplete="off" name="login-form" novalidate data-preserve-state="true" data-state-key="login-form" data-validate-form="login">
                 <div class="autofill-block" aria-hidden="true">
                   <input type="text" tabindex="-1" autocomplete="username" name="fake-user">
                   <input type="password" tabindex="-1" autocomplete="new-password" name="fake-pass">
                 </div>
-                <h3>Login</h3>
+                <div class="auth-heading">
+                  <h3>Login</h3>
+                  <p class="muted">Entre com seu nome e senha para continuar.</p>
+                </div>
                 <label>Nome
                   <input name="name" type="text" placeholder="Seu nome" autocomplete="off" autocapitalize="off" spellcheck="false" value="">
                   <span class="field-error" data-field-error-for="name"></span>
@@ -86,6 +89,7 @@
                 </label>
                 <button class="primary-btn" type="submit">Entrar</button>
               </form>
+
               <div class="forgot-access">
                 <p class="muted">Esqueceu a senha? Use o e-mail cadastrado para receber o link de acesso.</p>
                 <form class="stack-form forgot-form" method="post" action="{{ url_for('forgot_password') }}" autocomplete="off" novalidate data-preserve-state="true" data-state-key="forgot-password-form" data-validate-form="forgot">
@@ -96,42 +100,16 @@
                   <button class="secondary-btn" type="submit">Enviar link de redefinição</button>
                 </form>
               </div>
-            </div>
 
-            <form class="card form-card" method="post" action="{{ url_for('register') }}" autocomplete="off" name="register-form" novalidate data-preserve-state="true" data-state-key="register-form" data-validate-form="register">
-              <div class="autofill-block" aria-hidden="true">
-                <input type="text" tabindex="-1" autocomplete="username" name="fake-user-register">
-                <input type="password" tabindex="-1" autocomplete="new-password" name="fake-pass-register">
+              <div class="auth-divider"></div>
+              <div class="auth-register-cta">
+                <div>
+                  <h4>Não tem conta ainda?</h4>
+                  <p class="muted">Crie o seu acesso em uma tela separada, de forma mais organizada.</p>
+                </div>
+                <a class="primary-btn" href="{{ url_for('register') }}">Criar conta</a>
               </div>
-              <h3>Criar conta</h3>
-              <label>E-mail
-                <input name="email" type="email" placeholder="Digite o e-mail do usuário" autocomplete="email" value="">
-                <span class="field-error" data-field-error-for="email"></span>
-              </label>
-              <label>Nome do publicador
-                <input name="name" type="text" placeholder="Digite o nome do publicador" autocomplete="off" autocapitalize="off" spellcheck="false" value="">
-                <span class="field-error" data-field-error-for="name"></span>
-              </label>
-              <p class="muted helper-note">Use apenas primeiro nome e sobrenome. O sistema normaliza letras maiúsculas, minúsculas e acentos.</p>
-              <label>Senha
-                <input name="password" type="password" placeholder="Crie uma senha" autocomplete="off" autocapitalize="off" spellcheck="false" value="">
-                <span class="field-error" data-field-error-for="password"></span>
-              </label>
-              <label>Tipo de conta
-                <select name="role">
-                  <option value="publicador">Publicador</option>
-                  <option value="manager">Secretário da Congregação</option>
-                </select>
-              </label>
-              <p class="muted helper-note">
-                {% if can_create_manager %}
-                  A conta de Secretário da Congregação pode ser criada agora porque ainda não existe uma ativa.
-                {% else %}
-                  Se já existir um Secretário da Congregação, a criação de outra conta desse tipo será bloqueada pelo sistema.
-                {% endif %}
-              </p>
-              <button class="primary-btn" type="submit">Criar conta</button>
-            </form>
+            </div>
           </div>
         {% else %}
           <section class="dashboard-hero">

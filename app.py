@@ -303,8 +303,17 @@ def index():
     )
 
 
-@app.route("/register", methods=["POST"])
+@app.route("/register", methods=["GET", "POST"])
 def register():
+    can_create_manager = User.query.filter_by(role="manager").first() is None
+
+    if request.method == "GET":
+        return render_template(
+            "register.html",
+            user=current_user(),
+            can_create_manager=can_create_manager,
+        )
+
     name = request.form.get("name", "").strip()
     email = request.form.get("email", "").strip().lower()
     password = request.form.get("password", "")
@@ -312,38 +321,38 @@ def register():
 
     if not name:
         flash("Preencha o nome para criar a conta.")
-        return redirect(url_for("index"))
+        return redirect(url_for("register"))
     if not email:
         flash("Preencha o e-mail para criar a conta.")
-        return redirect(url_for("index"))
+        return redirect(url_for("register"))
     if not is_valid_email(email):
         flash("Digite um e-mail válido para criar a conta.")
-        return redirect(url_for("index"))
+        return redirect(url_for("register"))
     if not password:
         flash("Preencha a senha para criar a conta.")
-        return redirect(url_for("index"))
+        return redirect(url_for("register"))
     if len(password) < 6:
         flash("A senha deve ter no mínimo 6 dígitos.")
-        return redirect(url_for("index"))
+        return redirect(url_for("register"))
 
     normalized_name = normalize_name(name)
     name_parts = name.split()
     if len(name_parts) < 2:
         flash("Digite primeiro nome e sobrenome para continuar.")
-        return redirect(url_for("index"))
+        return redirect(url_for("register"))
 
     name = display_name(name)
 
     if any(normalize_name(user.name) == normalized_name for user in User.query.all()):
         flash("Já existe uma conta com esse nome.")
-        return redirect(url_for("index"))
+        return redirect(url_for("register"))
     if User.query.filter_by(email=email).first():
         flash("Já existe uma conta com esse e-mail.")
-        return redirect(url_for("index"))
+        return redirect(url_for("register"))
 
     if role == "manager" and User.query.filter_by(role="manager").first():
         flash("Já existe uma conta de Secretário da Congregação. Não é possível criar outra enquanto esta estiver ativa.")
-        return redirect(url_for("index"))
+        return redirect(url_for("register"))
 
     user = User(name=name, email=email, role=role)
     user.set_password(password)
