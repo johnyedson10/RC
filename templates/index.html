@@ -22,8 +22,8 @@
         <p class="eyebrow">CampoApp</p>
         <h1>Relatório mensal</h1>
         <p class="sidebar-text">
-          Preencha o relatório de cada mês com aparência de formulário impresso,
-          enquanto o secretário recebe todos os envios na própria conta.
+          Preencha seu relatório de cada mês trabalhado e evie-o.
+          O Secretário da Congregação recebe todos os relatórios.
         </p>
       </div>
       <div class="sidebar-mark" aria-label="RC">
@@ -105,7 +105,7 @@
               <div class="auth-register-cta">
                 <div>
                   <h4>Não tem conta ainda?</h4>
-                  <p class="muted">Crie o seu acesso em uma tela separada, de forma mais organizada.</p>
+                  <p class="muted">Crie sua conta.</p>
                 </div>
                 <a class="primary-btn" href="{{ url_for('register') }}">Criar conta</a>
               </div>
@@ -322,7 +322,7 @@
               <div class="panel-header compact">
                 <div>
                   <h3>Gerenciar minha conta</h3>
-                  <p class="muted">Você pode excluir sua própria conta quando quiser. Seus relatórios permanecerão na lista do Secretário da Congregação.</p>
+                  <p class="muted">Se excluir sua conta e recriá-la, seus relatórios permanecerão na lista do Secretário da Congregação.</p>
                 </div>
                 <form class="print-form" method="post" action="{{ url_for('delete_account') }}" onsubmit="return confirm('Tem certeza que deseja excluir sua própria conta? Esta ação remove seus relatórios também.');">
                   <input type="hidden" name="user_id" value="{{ user.id }}">
