@@ -162,6 +162,22 @@ def test_forgot_password_generates_reset_link_for_registered_email(client, app_a
     assert "Definir nova senha" in response.get_data(as_text=True)
 
 
+def test_forgot_password_shows_smtp_auth_error(client, app_api, monkeypatch):
+    user = create_user(app_api)
+
+    def fake_send_reset_email(*_args, **_kwargs):
+        raise app_api.SMTPAuthenticationError(535, b"Authentication failed")
+
+    monkeypatch.setattr(app_api, "send_reset_email", fake_send_reset_email)
+
+    response = client.post(
+        "/forgot-password",
+        data={"email": user["email"]},
+        follow_redirects=True,
+    )
+    assert "Falha de autenticação no SMTP. Verifique o e-mail e a senha de app." in get_flash_messages(response)
+
+
 def test_forgot_password_validates_email_field_and_missing_account(client):
     response = client.post(
         "/forgot-password",

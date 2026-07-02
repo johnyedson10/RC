@@ -14,12 +14,12 @@ TEST_DB_PATH = TEST_DB_DIR / "test.sqlite"
 os.environ["SECRET_KEY"] = "test-secret-key"
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_PATH.as_posix()}"
 os.environ["FLASK_ENV"] = "development"
-os.environ["SMTP_HOST"] = "smtp.gmail.com"
-os.environ["SMTP_PORT"] = "587"
-os.environ["SMTP_USER"] = "sender@gmail.com"
-os.environ["SMTP_PASSWORD"] = "app-password"
+os.environ["MAIL_HOST"] = "smtp.gmail.com"
+os.environ["MAIL_PORT"] = "587"
+os.environ["MAIL_USERNAME"] = "sender@gmail.com"
+os.environ["MAIL_PASSWORD"] = "app-password"
 os.environ["MAIL_FROM"] = "sender@gmail.com"
-os.environ["SMTP_USE_TLS"] = "true"
+os.environ["MAIL_USE_TLS"] = "true"
 
 sys.modules.pop("app", None)
 import app as app_module  # noqa: E402
