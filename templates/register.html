@@ -105,6 +105,7 @@
     window.addEventListener("DOMContentLoaded", () => {
       const flashNode = document.getElementById("flash-data");
       const flashMessages = flashNode ? JSON.parse(flashNode.textContent || "[]") : [];
+      const storage = window.localStorage;
       const notyf = window.Notyf
         ? new Notyf({
             duration: 20000,
@@ -130,6 +131,7 @@
       const isValidEmail = (value) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(value).trim());
       const getField = (fieldName) => form.querySelector(`[name="${fieldName}"]`);
       const getErrorNode = (fieldName) => form.querySelector(`[data-field-error-for="${fieldName}"]`);
+      const formStorageKey = (formElement) => `campoapp:${formElement.dataset.stateKey || formElement.name || formElement.id || "form"}`;
 
       const clearFieldError = (fieldName) => {
         const field = getField(fieldName);
@@ -184,6 +186,57 @@
         return errors;
       };
 
+      const persistableControls = (formElement) =>
+        Array.from(formElement.querySelectorAll("input, textarea, select")).filter((control) => {
+          if (control.disabled) return false;
+          if (control.type === "hidden" || control.type === "submit" || control.type === "button" || control.type === "file" || control.type === "password") return false;
+          if (control.closest(".autofill-block")) return false;
+          return true;
+        });
+
+      const saveFormState = (formElement) => {
+        const payload = {};
+        persistableControls(formElement).forEach((control) => {
+          if (control.type === "checkbox") {
+            payload[control.name] = control.checked;
+            return;
+          }
+          if (control.type === "radio") {
+            if (control.checked) {
+              payload[control.name] = control.value;
+            }
+            return;
+          }
+          payload[control.name] = control.value;
+        });
+        storage.setItem(formStorageKey(formElement), JSON.stringify(payload));
+      };
+
+      const restoreFormState = (formElement) => {
+        const raw = storage.getItem(formStorageKey(formElement));
+        if (!raw) return;
+        let payload = {};
+        try {
+          payload = JSON.parse(raw);
+        } catch (error) {
+          storage.removeItem(formStorageKey(formElement));
+          return;
+        }
+
+        persistableControls(formElement).forEach((control) => {
+          if (!(control.name in payload)) return;
+          if (control.type === "checkbox") {
+            control.checked = Boolean(payload[control.name]);
+            return;
+          }
+          if (control.type === "radio") {
+            control.checked = control.value === payload[control.name];
+            return;
+          }
+          control.value = payload[control.name];
+        });
+      };
+
       const renderErrors = (errors) => {
         ["name", "email", "password"].forEach(clearFieldError);
         const entries = Object.entries(errors);
@@ -194,13 +247,18 @@
       };
 
       if (form) {
+        restoreFormState(form);
         form.addEventListener("input", (event) => {
           if (event.target && event.target.name) {
             clearFieldError(event.target.name);
           }
+          saveFormState(form);
         });
 
+        form.addEventListener("change", () => saveFormState(form));
+
         form.addEventListener("submit", (event) => {
+          saveFormState(form);
           const errors = validateRegisterForm();
           if (!Object.keys(errors).length) return;
           event.preventDefault();

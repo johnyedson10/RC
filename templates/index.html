@@ -511,10 +511,12 @@
       const persistableControls = (form) =>
         Array.from(form.querySelectorAll("input, textarea, select")).filter((control) => {
           if (control.disabled) return false;
-          if (control.type === "hidden" || control.type === "submit" || control.type === "button" || control.type === "file") return false;
+          if (control.type === "hidden" || control.type === "submit" || control.type === "button" || control.type === "file" || control.type === "password") return false;
           if (control.closest(".autofill-block")) return false;
           return true;
         });
+
+      const storage = window.localStorage;
 
       const saveFormState = (form) => {
         const payload = {};
@@ -531,17 +533,17 @@
           }
           payload[control.name] = control.value;
         });
-        sessionStorage.setItem(formStorageKey(form), JSON.stringify(payload));
+        storage.setItem(formStorageKey(form), JSON.stringify(payload));
       };
 
       const restoreFormState = (form) => {
-        const raw = sessionStorage.getItem(formStorageKey(form));
+        const raw = storage.getItem(formStorageKey(form));
         if (!raw) return;
         let payload = {};
         try {
           payload = JSON.parse(raw);
         } catch (error) {
-          sessionStorage.removeItem(formStorageKey(form));
+          storage.removeItem(formStorageKey(form));
           return;
         }
 
@@ -561,7 +563,7 @@
 
       const clearPersistedState = () => {
         document.querySelectorAll('[data-preserve-state="true"]').forEach((form) => {
-          sessionStorage.removeItem(formStorageKey(form));
+          storage.removeItem(formStorageKey(form));
         });
       };
 
@@ -595,9 +597,6 @@
         showToast(message, type);
       });
 
-      if (flashMessages.some((message) => classifyMessage(message) === "success")) {
-        clearPersistedState();
-      }
     });
 
     if ("serviceWorker" in navigator) {

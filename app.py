@@ -6,6 +6,7 @@ from collections import defaultdict
 import smtplib
 import unicodedata
 from email.message import EmailMessage
+from smtplib import SMTPAuthenticationError, SMTPConnectError, SMTPException, SMTPNotSupportedError, SMTPServerDisconnected
 
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
@@ -126,12 +127,12 @@ def read_reset_token(token, max_age=3600):
 
 
 def send_reset_email(user, reset_url):
-    smtp_host = getenv("SMTP_HOST", "").strip()
-    smtp_port = int(getenv("SMTP_PORT", "587"))
-    smtp_user = getenv("SMTP_USER", "").strip()
-    smtp_password = getenv("SMTP_PASSWORD", "").strip()
+    smtp_host = getenv("MAIL_HOST", getenv("SMTP_HOST", "")).strip()
+    smtp_port = int(getenv("MAIL_PORT", getenv("SMTP_PORT", "587")))
+    smtp_user = getenv("MAIL_USERNAME", getenv("SMTP_USER", "")).strip()
+    smtp_password = getenv("MAIL_PASSWORD", getenv("SMTP_PASSWORD", "")).strip()
     mail_from = getenv("MAIL_FROM", smtp_user).strip()
-    use_tls = getenv("SMTP_USE_TLS", "true").lower() == "true"
+    use_tls = getenv("MAIL_USE_TLS", getenv("SMTP_USE_TLS", "true")).lower() == "true"
 
     if not smtp_host or not smtp_user or not smtp_password or not mail_from:
         raise RuntimeError("Configuração de e-mail incompleta.")
@@ -431,7 +432,23 @@ def forgot_password():
     try:
         send_reset_email(user, reset_url)
         flash("Enviamos um link de redefinição para o seu e-mail.")
-    except Exception:
+    except SMTPAuthenticationError as exc:
+        print(f"SMTP authentication error: {exc!r}")
+        flash("Falha de autenticação no SMTP. Verifique o e-mail e a senha de app.")
+    except SMTPNotSupportedError as exc:
+        print(f"SMTP TLS/feature not supported: {exc!r}")
+        flash("O servidor SMTP não aceitou o modo TLS configurado.")
+    except SMTPConnectError as exc:
+        print(f"SMTP connection error: {exc!r}")
+        flash("Não foi possível conectar ao servidor SMTP. Verifique o host e a porta.")
+    except SMTPServerDisconnected as exc:
+        print(f"SMTP disconnected: {exc!r}")
+        flash("O servidor SMTP encerrou a conexão. Verifique a configuração do provedor.")
+    except SMTPException as exc:
+        print(f"SMTP error: {exc!r}")
+        flash("Não foi possível enviar o e-mail de redefinição. Verifique a configuração do SMTP.")
+    except Exception as exc:
+        print(f"Unexpected email error: {exc!r}")
         flash("Não foi possível enviar o e-mail de redefinição. Verifique a configuração do SMTP.")
     return redirect(url_for("index"))
 

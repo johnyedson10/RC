@@ -178,6 +178,22 @@ def test_forgot_password_shows_smtp_auth_error(client, app_api, monkeypatch):
     assert "Falha de autenticação no SMTP. Verifique o e-mail e a senha de app." in get_flash_messages(response)
 
 
+def test_forgot_password_shows_smtp_connect_error(client, app_api, monkeypatch):
+    user = create_user(app_api)
+
+    def fake_send_reset_email(*_args, **_kwargs):
+        raise app_api.SMTPConnectError(421, "Connection refused")
+
+    monkeypatch.setattr(app_api, "send_reset_email", fake_send_reset_email)
+
+    response = client.post(
+        "/forgot-password",
+        data={"email": user["email"]},
+        follow_redirects=True,
+    )
+    assert "Não foi possível conectar ao servidor SMTP. Verifique o host e a porta." in get_flash_messages(response)
+
+
 def test_forgot_password_validates_email_field_and_missing_account(client):
     response = client.post(
         "/forgot-password",
